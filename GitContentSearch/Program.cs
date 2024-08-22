@@ -68,8 +68,8 @@ class Program
                     continue;
                 }
 
-                // Search for the string in the Excel file
-                bool found = SearchInExcel(tempFileName, searchString);
+                // Search for the string in the file
+                bool found = SearchInFile(tempFileName, searchString);
 
                 // Get the commit time
                 string commitTime;
@@ -132,6 +132,11 @@ class Program
 
         using (var process = Process.Start(startInfo))
         {
+            if (process == null)
+            {
+                throw new Exception("Failed to start git process.");
+            }
+
             string output = process.StandardOutput.ReadToEnd().Trim();
             string error = process.StandardError.ReadToEnd().Trim();
             process.WaitForExit();
@@ -162,6 +167,11 @@ class Program
 
         using (var process = Process.Start(startInfo))
         {
+            if (process == null)
+            {
+                throw new Exception("Failed to start git process.");
+            }
+
             using (var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write))
             {
                 process.StandardOutput.BaseStream.CopyTo(outputStream);
@@ -191,6 +201,12 @@ class Program
 
         using (var process = Process.Start(startInfo))
         {
+            if (process == null)
+            {
+                Console.WriteLine("Failed to start git process.");
+                return Array.Empty<string>();
+            }
+
             string output = process.StandardOutput.ReadToEnd().Trim();
             string error = process.StandardError.ReadToEnd().Trim();
             process.WaitForExit();
@@ -198,7 +214,7 @@ class Program
             if (process.ExitCode != 0)
             {
                 Console.WriteLine($"Error retrieving git commits: {error}");
-                return null;
+                return Array.Empty<string>();
             }
 
             var commits = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
@@ -239,6 +255,65 @@ class Program
         }
 
         return commits.Skip(startIndex).Take(endIndex - startIndex + 1).ToArray();
+    }
+
+    static bool SearchInFile(string fileName, string searchString)
+    {
+        if (IsTextFile(fileName))
+        {
+            return SearchInTextFile(fileName, searchString);
+        }
+        else
+        {
+            return SearchInExcel(fileName, searchString);
+        }
+    }
+
+    static bool SearchInTextFile(string fileName, string searchString)
+    {
+        try
+        {
+            foreach (var line in File.ReadLines(fileName))
+            {
+                if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading text file {fileName}: {ex.Message}");
+            return false;
+        }
+
+        return false;
+    }
+
+    static bool IsTextFile(string filePath)
+    {
+        const int sampleSize = 512;
+        byte[] buffer = new byte[sampleSize];
+
+        using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+        {
+            int bytesRead = fileStream.Read(buffer, 0, buffer.Length);
+
+            for (int i = 0; i < bytesRead; i++)
+            {
+                byte b = buffer[i];
+                if (b == 0) // Null byte found, not a text file
+                {
+                    return false;
+                }
+                // Check for non-printable characters except for newlines and carriage returns
+                if (b < 32 && b != 9 && b != 10 && b != 13)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     static bool SearchInExcel(string fileName, string searchString)
@@ -304,17 +379,17 @@ class Program
                 return cell.StringCellValue;
             case CellType.Numeric:
                 if (DateUtil.IsCellDateFormatted(cell))
-                    return cell.DateCellValue.ToString();
+                    return cell.DateCellValue?.ToString() ?? string.Empty;
                 else
                     return cell.NumericCellValue.ToString();
             case CellType.Boolean:
                 return cell.BooleanCellValue.ToString();
             case CellType.Formula:
-                return cell.ToString(); // Evaluating formulas can be complex; for simplicity, using the cached value
+                return cell?.ToString() ?? string.Empty; // Evaluating formulas can be complex; for simplicity, using the cached value
             case CellType.Blank:
                 return string.Empty;
             default:
-                return cell.ToString();
+                return cell?.ToString() ?? string.Empty;
         }
     }
 }
