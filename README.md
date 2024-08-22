@@ -13,20 +13,56 @@
 
 ## Installation
 
-Clone the repository:
+**Clone the repository**:
 
 ```bash
 git clone https://github.com/entityprocess/GitContentSearch.git
 cd GitContentSearch
 ```
 
-Build the application:
+**Build the application**:
 
 ```bash
 dotnet build
 ```
 
+**Add the executable folder to your PATH environment variable**
+
+After building the application, you will want to add the folder containing the GitContentSearch.exe (or equivalent for your operating system) to your PATH environment variable. This allows you to run the tool from any directory in your command line.
+
+* On Windows:
+  * Find the folder where the executable is located, typically in the bin/Debug/netX.X directory inside the project folder.
+  * Open the System Properties and go to Environment Variables.
+  * In the System variables section, find the Path variable and click Edit.
+  * Add the full path to the folder containing the executable.
+
+* On macOS/Linux:
+
+  * Open your terminal and edit your shell profile file (.bashrc, .zshrc, or .profile):
+    ```bash
+    nano ~/.bashrc
+    ```
+
+  * Add the following line to include the folder in your PATH:
+    ```bash
+    export PATH=$PATH:/path/to/your/git/repository/GitContentSearch/bin/Debug/netX.X
+    ```
+
+  * Save the file and run:
+    ```bash
+    source ~/.bashrc
+    ```
+
 ## Usage
+
+**1. Navigate to your Git directory**:
+  
+Before running the tool, ensure you're in the directory where your Git repository is located:
+
+```bash
+cd /path/to/your/git/repository
+```
+**2. Run the tool**:
 
 ```bash
 GitContentSearch.exe <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>]

@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34511.84
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitContentSearch", "GitContentSearch\GitContentSearch.csproj", "{04D34493-4172-4959-938B-6E674CB0806B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitContentSearch", "GitContentSearch\GitContentSearch.csproj", "{04D34493-4172-4959-938B-6E674CB0806B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitContentSearch.Tests", "GitContentSearch.Tests\GitContentSearch.Tests.csproj", "{AA41E515-B4F9-41EF-A542-751FCE4AF023}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{04D34493-4172-4959-938B-6E674CB0806B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{04D34493-4172-4959-938B-6E674CB0806B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{04D34493-4172-4959-938B-6E674CB0806B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA41E515-B4F9-41EF-A542-751FCE4AF023}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA41E515-B4F9-41EF-A542-751FCE4AF023}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA41E515-B4F9-41EF-A542-751FCE4AF023}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA41E515-B4F9-41EF-A542-751FCE4AF023}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
