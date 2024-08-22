@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34511.84
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitExcelSearch", "GitExcelSearch\GitExcelSearch.csproj", "{04D34493-4172-4959-938B-6E674CB0806B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitContentSearch", "GitContentSearch\GitContentSearch.csproj", "{04D34493-4172-4959-938B-6E674CB0806B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
