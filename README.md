@@ -68,6 +68,8 @@ cd /path/to/your/git/repository
 GitContentSearch.exe <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>]
 ```
 
+Note: Make sure the file path does not start with a forward slash (/), as this can cause errors when Git tries to locate the file.
+
 ### Arguments
 
 * `<file-path>`: The path to the Content file within the Git repository.

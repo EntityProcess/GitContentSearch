@@ -41,6 +41,12 @@ namespace GitContentSearch
 
         public void RunGitShow(string commit, string filePath, string outputFile)
         {
+            // Ensure the file path is properly formatted for Git
+            if (filePath.StartsWith("/"))
+            {
+                filePath = filePath.Substring(1); // Remove the leading slash if it exists
+            }
+
             string quotedFilePath = $"\"{filePath}\"";
 
             var startInfo = new ProcessStartInfo
