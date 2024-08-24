@@ -4,6 +4,13 @@ namespace GitContentSearch
 {
     public class GitHelper : IGitHelper
     {
+        private readonly IProcessWrapper _processWrapper;
+
+        public GitHelper(IProcessWrapper processWrapper)
+        {
+            _processWrapper = processWrapper;
+        }
+
         public string GetCommitTime(string commitHash)
         {
             var startInfo = new ProcessStartInfo
@@ -16,7 +23,7 @@ namespace GitContentSearch
                 CreateNoWindow = true
             };
 
-            using (var process = Process.Start(startInfo))
+            using (var process = _processWrapper.Start(startInfo))
             {
                 if (process == null)
                 {

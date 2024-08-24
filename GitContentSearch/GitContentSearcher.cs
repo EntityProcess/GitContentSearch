@@ -5,10 +5,10 @@
         private readonly IGitHelper _gitHelper;
         private readonly IFileSearcher _fileSearcher;
 
-        public GitContentSearcher()
+        public GitContentSearcher(IFileSearcher fileSearcher, IProcessWrapper processWrapper)
         {
-            _gitHelper = new GitHelper();
-            _fileSearcher = new FileSearcher();
+            _gitHelper = new GitHelper(processWrapper);
+            _fileSearcher = fileSearcher;
         }
 
         public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher)
