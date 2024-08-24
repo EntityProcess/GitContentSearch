@@ -1,11 +1,8 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
+﻿using System.Diagnostics;
 
 namespace GitContentSearch
 {
-    public class GitHelper
+    public class GitHelper : IGitHelper
     {
         public string GetCommitTime(string commitHash)
         {

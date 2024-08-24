@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-using Xunit;
-using Moq;
+﻿using Moq;
 
 namespace GitContentSearch.Tests
 {
@@ -11,8 +8,8 @@ namespace GitContentSearch.Tests
         public void SearchContent_ShouldLogCorrectly_ForFoundString()
         {
             // Arrange
-            var gitHelperMock = new Mock<GitHelper>();
-            var fileSearcherMock = new Mock<FileSearcher>();
+            var gitHelperMock = new Mock<IGitHelper>();
+            var fileSearcherMock = new Mock<IFileSearcher>();
 
             gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>()))
                          .Returns(new[] { "commit1", "commit2" });
@@ -24,15 +21,13 @@ namespace GitContentSearch.Tests
 
             var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object);
 
-            using (var logFile = new StreamWriter("search_log.txt", append: false))
+            using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string", logWriter: stringWriter);
 
                 // Assert
-                logFile.Flush();
-                logFile.BaseStream.Position = 0;
-                var logContent = new StreamReader(logFile.BaseStream).ReadToEnd();
+                var logContent = stringWriter.ToString();
                 Assert.Contains("found: True", logContent);
             }
         }
@@ -41,8 +36,8 @@ namespace GitContentSearch.Tests
         public void SearchContent_ShouldLogCorrectly_ForNotFoundString()
         {
             // Arrange
-            var gitHelperMock = new Mock<GitHelper>();
-            var fileSearcherMock = new Mock<FileSearcher>();
+            var gitHelperMock = new Mock<IGitHelper>();
+            var fileSearcherMock = new Mock<IFileSearcher>();
 
             gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>()))
                          .Returns(new[] { "commit1", "commit2" });
@@ -54,15 +49,13 @@ namespace GitContentSearch.Tests
 
             var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object);
 
-            using (var logFile = new StreamWriter("search_log.txt", append: false))
+            using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string", logWriter: stringWriter);
 
                 // Assert
-                logFile.Flush();
-                logFile.BaseStream.Position = 0;
-                var logContent = new StreamReader(logFile.BaseStream).ReadToEnd();
+                var logContent = stringWriter.ToString();
                 Assert.Contains("found: False", logContent);
             }
         }

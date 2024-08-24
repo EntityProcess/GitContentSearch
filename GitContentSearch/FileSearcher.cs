@@ -1,12 +1,10 @@
-﻿using System;
-using System.IO;
+﻿using NPOI.HSSF.UserModel; // For .xls
 using NPOI.SS.UserModel;
-using NPOI.HSSF.UserModel; // For .xls
 using NPOI.XSSF.UserModel; // For .xlsx
 
 namespace GitContentSearch
 {
-    public class FileSearcher
+    public class FileSearcher : IFileSearcher
     {
         public bool SearchInFile(string fileName, string searchString)
         {
