@@ -27,12 +27,11 @@ namespace GitContentSearch.Tests
             fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(true);
             fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
 
-            var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager());
-
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string", logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string");
 
                 // Assert
                 var logContent = stringWriter.ToString();
@@ -58,12 +57,11 @@ namespace GitContentSearch.Tests
             // Simulate no appearances of the string
             fileSearcherMock.Setup(f => f.SearchInFile(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
 
-            var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager());
-
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string", logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string");
 
                 // Assert
                 var logContent = stringWriter.ToString();
@@ -92,13 +90,11 @@ namespace GitContentSearch.Tests
             fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(false);
             fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
 
-
-            var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager());
-
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string", logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string");
 
                 // Assert
                 var logContent = stringWriter.ToString();
@@ -133,12 +129,11 @@ namespace GitContentSearch.Tests
             fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(false);
             fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
 
-            var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager());
-
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit2", "commit3", stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit2", "commit3");
 
                 // Assert
                 var logContent = stringWriter.ToString();
@@ -170,12 +165,11 @@ namespace GitContentSearch.Tests
             gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>())).Returns(allCommits);
             gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
 
-            var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager());
-
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit4", "commit3", stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit4", "commit3");
 
                 // Assert
                 var logContent = stringWriter.ToString();

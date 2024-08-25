@@ -18,6 +18,7 @@ namespace GitContentSearch
             string earliestCommit = "";
             string latestCommit = "";
             string? workingDirectory = null;
+            string? logDirectory = null;
 
             // Parse optional arguments
             foreach (var arg in args.Skip(2))
@@ -34,12 +35,22 @@ namespace GitContentSearch
                 {
                     workingDirectory = arg.Replace("--working-directory=", "");
                 }
+                else if (arg.StartsWith("--log-directory="))
+                {
+                    logDirectory = arg.Replace("--log-directory=", "");
+                }
             }
+
+            var logWriter = new CompositeTextWriter(
+                Console.Out,
+                new StreamWriter(Path.Combine(logDirectory ?? Directory.GetCurrentDirectory(), "search_log.txt"), append: true)
+                );
 
             var processWrapper = new ProcessWrapper();
             var gitHelper = new GitHelper(processWrapper, workingDirectory);
             var fileSearcher = new FileSearcher();
-            var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, new FileManager());
+            var fileManager = new FileManager(logDirectory);
+            var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logWriter);
             gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
         }
     }

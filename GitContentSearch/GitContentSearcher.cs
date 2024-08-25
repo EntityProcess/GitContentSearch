@@ -7,43 +7,43 @@ namespace GitContentSearch
         private readonly IGitHelper _gitHelper;
         private readonly IFileSearcher _fileSearcher;
         private readonly IFileManager _fileManager;
+        private readonly TextWriter _logWriter;
 
-        public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager)
+        public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager, TextWriter? logWriter = null)
         {
             _gitHelper = gitHelper;
             _fileSearcher = fileSearcher;
             _fileManager = fileManager;
-        }
-
-        public void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "", TextWriter? logWriter = null)
-        {
-            logWriter ??= new CompositeTextWriter(
+            _logWriter = logWriter ?? new CompositeTextWriter(
                 Console.Out,
                 new StreamWriter("search_log.txt", append: true)
             );
+        }
 
+        public void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "")
+        {
             var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit);
             commits = commits.Reverse().ToArray();
 
             if (commits == null || commits.Length == 0)
             {
-                logWriter.WriteLine("No commits found in the specified range.");
+                _logWriter.WriteLine("No commits found in the specified range.");
                 return;
             }
 
             if (Array.IndexOf(commits, earliestCommit) > Array.IndexOf(commits, latestCommit))
             {
-                logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
+                _logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
                 return;
             }
 
-            int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, logWriter);
-            int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, logWriter, firstMatchIndex);
+            int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString);
+            int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, firstMatchIndex);
 
-            LogResults(firstMatchIndex, lastMatchIndex, commits, searchString, logWriter);
+            LogResults(firstMatchIndex, lastMatchIndex, commits, searchString, _logWriter);
         }
 
-        private int FindFirstMatchIndex(string[] commits, string filePath, string searchString, TextWriter logWriter)
+        private int FindFirstMatchIndex(string[] commits, string filePath, string searchString)
         {
             int left = 0;
             int right = commits.Length - 1;
@@ -61,16 +61,16 @@ namespace GitContentSearch
                 }
                 catch (Exception ex)
                 {
-                    logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
+                    _logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
                     right = mid - 1;
                     continue;
                 }
 
                 bool found = _fileSearcher.SearchInFile(tempFileName, searchString);
-                string commitTime = GetCommitTime(commit, logWriter);
+                string commitTime = GetCommitTime(commit, _logWriter);
 
-                logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
-                logWriter.Flush();
+                _logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
+                _logWriter.Flush();
 
                 if (found)
                 {
@@ -88,7 +88,7 @@ namespace GitContentSearch
             return firstMatchIndex ?? -1;
         }
 
-        private int FindLastMatchIndex(string[] commits, string filePath, string searchString, TextWriter logWriter, int searchStartIndex)
+        private int FindLastMatchIndex(string[] commits, string filePath, string searchString, int searchStartIndex)
         {
             int left = searchStartIndex == -1 ? 0 : searchStartIndex;
             int right = commits.Length - 1;
@@ -106,16 +106,16 @@ namespace GitContentSearch
                 }
                 catch (Exception ex)
                 {
-                    logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
+                    _logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
                     right = mid - 1;
                     continue;
                 }
 
                 bool found = _fileSearcher.SearchInFile(tempFileName, searchString);
-                string commitTime = GetCommitTime(commit, logWriter);
+                string commitTime = GetCommitTime(commit, _logWriter);
 
-                logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
-                logWriter.Flush();
+                _logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
+                _logWriter.Flush();
 
                 if (found)
                 {
