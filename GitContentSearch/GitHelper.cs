@@ -23,29 +23,18 @@ namespace GitContentSearch
                 CreateNoWindow = true
             };
 
-            using (var process = _processWrapper.Start(startInfo))
+            var result = _processWrapper.Start(startInfo);
+
+            if (result.ExitCode != 0)
             {
-                if (process == null)
-                {
-                    throw new Exception("Failed to start git process.");
-                }
-
-                string output = process.StandardOutput.ReadToEnd().Trim();
-                string error = process.StandardError.ReadToEnd().Trim();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    throw new Exception($"Error getting commit time: {error}");
-                }
-
-                return output;
+                throw new Exception($"Error getting commit time: {result.StandardError}");
             }
+
+            return result.StandardOutput;
         }
 
         public void RunGitShow(string commit, string filePath, string outputFile)
         {
-            // Ensure the file path is properly formatted for Git
             if (filePath.StartsWith("/"))
             {
                 filePath = filePath.Substring(1); // Remove the leading slash if it exists
@@ -63,26 +52,14 @@ namespace GitContentSearch
                 CreateNoWindow = true
             };
 
-            using (var process = Process.Start(startInfo))
+            var result = _processWrapper.Start(startInfo);
+
+            if (result.ExitCode != 0)
             {
-                if (process == null)
-                {
-                    throw new Exception("Failed to start git process.");
-                }
-
-                using (var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write))
-                {
-                    process.StandardOutput.BaseStream.CopyTo(outputStream);
-                }
-
-                string error = process.StandardError.ReadToEnd().Trim();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    throw new Exception($"Error running git show: {error}");
-                }
+                throw new Exception($"Error running git show: {result.StandardError}");
             }
+
+            File.WriteAllText(outputFile, result.StandardOutput);
         }
 
         public string[] GetGitCommits(string earliest, string latest)
@@ -97,28 +74,17 @@ namespace GitContentSearch
                 CreateNoWindow = true
             };
 
-            using (var process = Process.Start(startInfo))
+            var result = _processWrapper.Start(startInfo);
+
+            if (result.ExitCode != 0)
             {
-                if (process == null)
-                {
-                    Console.WriteLine("Failed to start git process.");
-                    return Array.Empty<string>();
-                }
-
-                string output = process.StandardOutput.ReadToEnd().Trim();
-                string error = process.StandardError.ReadToEnd().Trim();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    Console.WriteLine($"Error retrieving git commits: {error}");
-                    return Array.Empty<string>();
-                }
-
-                var commits = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-
-                return FilterCommitsByRange(commits, earliest, latest);
+                Console.WriteLine($"Error retrieving git commits: {result.StandardError}");
+                return Array.Empty<string>();
             }
+
+            var commits = result.StandardOutput.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            return FilterCommitsByRange(commits, earliest, latest);
         }
 
         private string[] FilterCommitsByRange(string[] commits, string earliest, string latest)
