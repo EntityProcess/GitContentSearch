@@ -6,7 +6,7 @@ using NPOI.XSSF.UserModel; // For .xlsx
 
 namespace GitContentSearch
 {
-    public class FileSearcher
+    public class FileSearcher : IFileSearcher
     {
         public bool SearchInFile(string fileName, string searchString)
         {

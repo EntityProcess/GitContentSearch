@@ -30,8 +30,11 @@ namespace GitContentSearch
                 }
             }
 
-            var searcher = new GitContentSearcher();
-            searcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
+            var processWrapper = new ProcessWrapper();
+            var gitHelper = new GitHelper(processWrapper);
+            var fileSearcher = new FileSearcher();
+            var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher);
+            gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
         }
     }
 }

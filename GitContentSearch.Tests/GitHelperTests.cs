@@ -1,4 +1,7 @@
+using Moq;
 using System;
+using System.Diagnostics;
+using System.IO;
 using Xunit;
 
 namespace GitContentSearch.Tests
@@ -9,7 +12,12 @@ namespace GitContentSearch.Tests
         public void GetGitCommits_ShouldReturnEmptyArray_OnGitFailure()
         {
             // Arrange
-            var gitHelper = new GitHelper();
+            var processWrapperMock = new Mock<IProcessWrapper>();
+
+            var processResult = new ProcessResult(string.Empty, "Error occurred", 1);
+            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+
+            var gitHelper = new GitHelper(processWrapperMock.Object);
 
             // Act
             var result = gitHelper.GetGitCommits("invalidCommit", "anotherInvalidCommit");
@@ -23,10 +31,34 @@ namespace GitContentSearch.Tests
         public void GetCommitTime_ShouldThrowException_OnProcessFailure()
         {
             // Arrange
-            var gitHelper = new GitHelper();
+            var processWrapperMock = new Mock<IProcessWrapper>();
+
+            var processResult = new ProcessResult(string.Empty, "fatal: bad object invalidCommit", 1);
+            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+
+            var gitHelper = new GitHelper(processWrapperMock.Object);
 
             // Act & Assert
-            Assert.Throws<Exception>(() => gitHelper.GetCommitTime("invalidCommit"));
+            var exception = Assert.Throws<Exception>(() => gitHelper.GetCommitTime("invalidCommit"));
+            Assert.Equal("Error getting commit time: fatal: bad object invalidCommit", exception.Message);
+        }
+
+        [Fact]
+        public void GetCommitTime_ShouldReturnCorrectTime_OnSuccess()
+        {
+            // Arrange
+            var processWrapperMock = new Mock<IProcessWrapper>();
+
+            var processResult = new ProcessResult("2023-08-21 12:34:56 +0000", string.Empty, 0);
+            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+
+            var gitHelper = new GitHelper(processWrapperMock.Object);
+
+            // Act
+            var result = gitHelper.GetCommitTime("validCommitHash");
+
+            // Assert
+            Assert.Equal("2023-08-21 12:34:56 +0000", result);
         }
     }
 }
