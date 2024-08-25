@@ -1,15 +1,7 @@
 ﻿using GitContentSearch.Helpers;
-using System;
-using System.IO;
-using System.Linq;
 
 namespace GitContentSearch
 {
-    public interface IGitContentSearcher
-    {
-        void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "", TextWriter? logWriter = null);
-    }
-
     public class GitContentSearcher : IGitContentSearcher
     {
         private readonly IGitHelper _gitHelper;
@@ -31,6 +23,7 @@ namespace GitContentSearch
             );
 
             var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit);
+            commits = commits.Reverse().ToArray();
 
             if (commits == null || commits.Length == 0)
             {
@@ -38,17 +31,17 @@ namespace GitContentSearch
                 return;
             }
 
-            int firstAppearanceIndex = FindAppearanceIndex(commits, filePath, searchString, true, logWriter);
-            int lastAppearanceIndex = FindAppearanceIndex(commits, filePath, searchString, false, logWriter, firstAppearanceIndex);
+            int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, logWriter);
+            int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, logWriter, firstMatchIndex);
 
-            LogResults(firstAppearanceIndex, lastAppearanceIndex, commits, searchString, logWriter);
+            LogResults(firstMatchIndex, lastMatchIndex, commits, searchString, logWriter);
         }
 
-        private int FindAppearanceIndex(string[] commits, string filePath, string searchString, bool isFirstSearch, TextWriter logWriter, int searchEndIndex = -1)
+        private int FindFirstMatchIndex(string[] commits, string filePath, string searchString, TextWriter logWriter)
         {
-            int left = isFirstSearch ? 0 : searchEndIndex == -1 ? 0 : searchEndIndex;
+            int left = 0;
             int right = commits.Length - 1;
-            int? appearanceIndex = null;
+            int? firstMatchIndex = null;
 
             while (left <= right)
             {
@@ -63,14 +56,7 @@ namespace GitContentSearch
                 catch (Exception ex)
                 {
                     logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
-                    if (isFirstSearch)
-                    {
-                        right = mid - 1;
-                    }
-                    else
-                    {
-                        left = mid + 1;
-                    }
+                    right = mid - 1;
                     continue;
                 }
 
@@ -82,32 +68,63 @@ namespace GitContentSearch
 
                 if (found)
                 {
-                    appearanceIndex = mid;
-                    if (isFirstSearch)
-                    {
-                        right = mid - 1; // Continue searching to the left to find the first appearance
-                    }
-                    else
-                    {
-                        left = mid + 1; // Continue searching to the right to find the last appearance
-                    }
+                    firstMatchIndex = mid;
+                    right = mid - 1; // Continue searching to the left to find the first match
                 }
                 else
                 {
-                    if (isFirstSearch)
-                    {
-                        left = mid + 1;
-                    }
-                    else
-                    {
-                        right = mid - 1;
-                    }
+                    left = mid + 1;
                 }
 
                 _fileManager.DeleteTempFile(tempFileName);
             }
 
-            return appearanceIndex ?? -1;
+            return firstMatchIndex ?? -1;
+        }
+
+        private int FindLastMatchIndex(string[] commits, string filePath, string searchString, TextWriter logWriter, int searchStartIndex)
+        {
+            int left = searchStartIndex == -1 ? 0 : searchStartIndex;
+            int right = commits.Length - 1;
+            int? lastMatchIndex = null;
+
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                string commit = commits[mid];
+                string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
+
+                try
+                {
+                    _gitHelper.RunGitShow(commit, filePath, tempFileName);
+                }
+                catch (Exception ex)
+                {
+                    logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
+                    right = mid - 1;
+                    continue;
+                }
+
+                bool found = _fileSearcher.SearchInFile(tempFileName, searchString);
+                string commitTime = GetCommitTime(commit, logWriter);
+
+                logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
+                logWriter.Flush();
+
+                if (found)
+                {
+                    lastMatchIndex = mid;
+                    left = mid + 1; // Continue searching to the right to find the last match
+                }
+                else
+                {
+                    right = mid - 1;
+                }
+
+                _fileManager.DeleteTempFile(tempFileName);
+            }
+
+            return lastMatchIndex ?? -1;
         }
 
         private string GetCommitTime(string commit, TextWriter logWriter)
@@ -123,18 +140,18 @@ namespace GitContentSearch
             }
         }
 
-        private void LogResults(int firstAppearanceIndex, int lastAppearanceIndex, string[] commits, string searchString, TextWriter logWriter)
+        private void LogResults(int firstMatchIndex, int lastMatchIndex, string[] commits, string searchString, TextWriter logWriter)
         {
-            if (firstAppearanceIndex == -1)
+            if (firstMatchIndex == -1)
             {
                 logWriter.WriteLine($"Search string \"{searchString}\" does not appear in any of the checked commits.");
             }
             else
             {
-                logWriter.WriteLine($"Search string \"{searchString}\" first appears in commit {commits[firstAppearanceIndex]}.");
-                if (lastAppearanceIndex != -1)
+                logWriter.WriteLine($"Search string \"{searchString}\" first appears in commit {commits[firstMatchIndex]}.");
+                if (lastMatchIndex != -1)
                 {
-                    logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastAppearanceIndex]}.");
+                    logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex]}.");
                 }
             }
         }
