@@ -6,7 +6,7 @@
 
 ## Features
 
-- **Binary Search**: Quickly identifies the commit where the search string first appears and last appears.
+- **Binary Search**: Quickly identifies the commit where the search string first appears and last disappears.
 - **Supports Large Repos**: Handles extensive commit histories by narrowing down the search space.
 - **Log File**: Keeps track of all checked commits and results, allowing you to continue the search later.
 - **Commit Range**: Specify an earliest and latest commit to limit the search scope.
