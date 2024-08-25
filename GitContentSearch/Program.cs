@@ -9,7 +9,7 @@ namespace GitContentSearch
         {
             if (args.Length < 2)
             {
-                Console.WriteLine("Usage: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>]  [--working-directory=<path>]");
+                Console.WriteLine("Usage: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>]  [--working-directory=<path>] [--log-directory=<path>]");
                 return;
             }
 
