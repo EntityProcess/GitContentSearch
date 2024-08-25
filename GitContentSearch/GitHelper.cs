@@ -5,10 +5,17 @@ namespace GitContentSearch
     public class GitHelper : IGitHelper
     {
         private readonly IProcessWrapper _processWrapper;
+        private readonly string? _workingDirectory;
 
         public GitHelper(IProcessWrapper processWrapper)
         {
             _processWrapper = processWrapper;
+        }
+
+        public GitHelper(IProcessWrapper processWrapper, string? workingDirectory)
+        {
+            _processWrapper = processWrapper;
+            _workingDirectory = workingDirectory;
         }
 
         public string GetCommitTime(string commitHash)
@@ -20,7 +27,8 @@ namespace GitContentSearch
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = _workingDirectory // Set the working directory
             };
 
             var result = _processWrapper.Start(startInfo);
@@ -50,7 +58,8 @@ namespace GitContentSearch
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = _workingDirectory // Set the working directory
             };
 
             ProcessResult result;
@@ -74,7 +83,8 @@ namespace GitContentSearch
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = _workingDirectory // Set the working directory
             };
 
             var result = _processWrapper.Start(startInfo);
