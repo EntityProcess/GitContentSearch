@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GitContentSearch.Helpers;
+using System;
 
 namespace GitContentSearch
 {
@@ -33,7 +34,7 @@ namespace GitContentSearch
             var processWrapper = new ProcessWrapper();
             var gitHelper = new GitHelper(processWrapper);
             var fileSearcher = new FileSearcher();
-            var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher);
+            var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, new FileManager());
             gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
         }
     }
