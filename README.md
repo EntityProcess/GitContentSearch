@@ -65,7 +65,7 @@ cd /path/to/your/git/repository
 **2. Run the tool**:
 
 ```bash
-GitContentSearch.exe <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>]
+GitContentSearch.exe <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>]
 ```
 
 Note: Make sure the file path does not start with a forward slash (/), as this can cause errors when Git tries to locate the file.
@@ -76,18 +76,20 @@ Note: Make sure the file path does not start with a forward slash (/), as this c
 * `<search-string>`: The string you want to search for in the Content file.
 * `--earliest-commit=<commit>`: (Optional) The earliest commit to begin the search.
 * `--latest-commit=<commit>`: (Optional) The latest commit to end the search.
+* `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the current directory if not provided.
+* `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the current directory if not provided.
 
 ### Example
 
 ```bash
-GitContentSearch.exe "path/to/your/Content-file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456
+GitContentSearch.exe "path/to/your/Content-file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456 --working-directory="/your/git/repo" --log-directory="/your/log/directory"
 ```
 
-This will search for the string "SearchString" within the specified commit range.
+This will search for the string "SearchString" within the specified commit range, using the specified working directory for Git operations and storing logs and temporary files in the specified log directory.
 
 ## Output
 
-Search Log: A file named search_log.txt is created in the working directory, detailing the commits checked and whether the string was found.
+Search Log: A file named search_log.txt is created in the log directory, detailing the commits checked and whether the string was found. The log directory is also used to store any temporary files generated during the search process.
 
 ## Dependencies
 
