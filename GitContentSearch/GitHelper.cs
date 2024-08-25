@@ -95,29 +95,32 @@ namespace GitContentSearch
             int startIndex = 0;
             int endIndex = commits.Length - 1;
 
+            // Find the index of the latest commit (should be closer to start of the array)
             if (!string.IsNullOrEmpty(latest))
             {
                 startIndex = Array.IndexOf(commits, latest);
                 if (startIndex == -1)
                 {
                     Console.WriteLine($"Latest commit {latest} not found.");
-                    startIndex = 0;
+                    return new string[0];
                 }
             }
 
+            // Find the index of the earliest commit (should be closer to the end of the array)
             if (!string.IsNullOrEmpty(earliest))
             {
                 endIndex = Array.IndexOf(commits, earliest);
                 if (endIndex == -1)
                 {
                     Console.WriteLine($"Earliest commit {earliest} not found.");
-                    endIndex = commits.Length - 1;
+                    return new string[0];
                 }
             }
 
+            // If the latest commit appears after the earliest commit in the list, the range is invalid
             if (startIndex > endIndex)
             {
-                Console.WriteLine("Invalid commit range specified.");
+                Console.WriteLine("Invalid commit range specified: latest commit is earlier than the earliest commit.");
                 return new string[0];
             }
 

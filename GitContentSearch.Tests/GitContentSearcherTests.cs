@@ -175,7 +175,7 @@ namespace GitContentSearch.Tests
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit3", "commit4", stringWriter);
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit4", "commit3", stringWriter);
 
                 // Assert
                 var logContent = stringWriter.ToString();

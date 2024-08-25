@@ -31,7 +31,7 @@ namespace GitContentSearch
                 return;
             }
 
-            if (Array.IndexOf(commits, earliestCommit) < Array.IndexOf(commits, latestCommit))
+            if (Array.IndexOf(commits, earliestCommit) > Array.IndexOf(commits, latestCommit))
             {
                 logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
                 return;
