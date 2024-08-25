@@ -35,6 +35,7 @@ namespace GitContentSearch
 
         public void RunGitShow(string commit, string filePath, string outputFile)
         {
+            // Ensure the file path is properly formatted for Git
             if (filePath.StartsWith("/"))
             {
                 filePath = filePath.Substring(1); // Remove the leading slash if it exists
@@ -52,14 +53,16 @@ namespace GitContentSearch
                 CreateNoWindow = true
             };
 
-            var result = _processWrapper.Start(startInfo);
+            ProcessResult result;
+            using (var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write))
+            {
+                result = _processWrapper.Start(startInfo, outputStream);
+            }
 
             if (result.ExitCode != 0)
             {
                 throw new Exception($"Error running git show: {result.StandardError}");
             }
-
-            File.WriteAllText(outputFile, result.StandardOutput);
         }
 
         public string[] GetGitCommits(string earliest, string latest)
