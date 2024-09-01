@@ -1,5 +1,5 @@
 ﻿using GitContentSearch.Helpers;
-using System;
+using System.IO;
 
 namespace GitContentSearch
 {
@@ -41,15 +41,30 @@ namespace GitContentSearch
                 }
             }
 
+            string logAndTempFileDirectory = logDirectory ?? string.Empty;
+            if (string.IsNullOrEmpty(logAndTempFileDirectory))
+            {
+                string tempPath = Path.GetTempPath();
+                logAndTempFileDirectory = Path.Combine(tempPath, "GitContentSearch");
+
+                if (!Directory.Exists(logAndTempFileDirectory))
+                {
+                    Directory.CreateDirectory(logAndTempFileDirectory);
+                }
+            }
+
+            Console.WriteLine("Starting GitContentSearch...");
+            Console.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
+
             var logWriter = new CompositeTextWriter(
                 Console.Out,
-                new StreamWriter(Path.Combine(logDirectory ?? Directory.GetCurrentDirectory(), "search_log.txt"), append: true)
+                new StreamWriter(Path.Combine(logAndTempFileDirectory, "search_log.txt"), append: true)
                 );
 
             var processWrapper = new ProcessWrapper();
             var gitHelper = new GitHelper(processWrapper, workingDirectory);
             var fileSearcher = new FileSearcher();
-            var fileManager = new FileManager(logDirectory);
+            var fileManager = new FileManager(logAndTempFileDirectory);
             var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logWriter);
             gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
         }

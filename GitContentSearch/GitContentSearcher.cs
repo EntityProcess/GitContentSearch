@@ -63,6 +63,7 @@ namespace GitContentSearch
                 {
                     _logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
                     right = mid - 1;
+                    _fileManager.DeleteTempFile(tempFileName);
                     continue;
                 }
 
