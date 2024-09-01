@@ -76,8 +76,8 @@ Note: Make sure the file path does not start with a forward slash (/), as this c
 * `<search-string>`: The string you want to search for in the Content file.
 * `--earliest-commit=<commit>`: (Optional) The earliest commit to begin the search.
 * `--latest-commit=<commit>`: (Optional) The latest commit to end the search.
-* `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the current directory if not provided.
-* `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the current directory if not provided.
+* `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the user's temp directory if not provided.
+* `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the user's temp directory if not provided.
 
 ### Example
 
