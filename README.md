@@ -23,7 +23,7 @@ cd GitContentSearch
 **Build the application**:
 
 ```bash
-dotnet build
+dotnet publish -c Release
 ```
 
 **Add the executable folder to your PATH environment variable**
@@ -31,7 +31,7 @@ dotnet build
 After building the application, you will want to add the folder containing the GitContentSearch.exe (or equivalent for your operating system) to your PATH environment variable. This allows you to run the tool from any directory in your command line.
 
 * On Windows:
-  * Find the folder where the executable is located, typically in the bin/Debug/netX.X directory inside the project folder.
+  * Find the folder where the executable is located, typically in the bin/Release/netX.X/publish directory inside the project folder.
   * Open the System Properties and go to Environment Variables.
   * In the System variables section, find the Path variable and click Edit.
   * Add the full path to the folder containing the executable.
@@ -45,7 +45,7 @@ After building the application, you will want to add the folder containing the G
 
   * Add the following line to include the folder in your PATH:
     ```bash
-    export PATH=$PATH:/path/to/your/git/repository/GitContentSearch/bin/Debug/netX.X
+    export PATH=$PATH:/path/to/your/git/repository/GitContentSearch/bin/Release/netX.X/publish
     ```
 
   * Save the file and run:
