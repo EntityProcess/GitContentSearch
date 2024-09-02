@@ -54,21 +54,20 @@ namespace GitContentSearch
                 int mid = left + (right - left) / 2;
                 string commit = commits[mid];
                 string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
+                string commitTime = GetCommitTime(commit, _logWriter);
 
+                bool gitShowSuccess = false;
                 try
                 {
                     _gitHelper.RunGitShow(commit, filePath, tempFileName);
+                    gitShowSuccess = true;
                 }
                 catch (Exception ex)
                 {
                     _logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
-                    right = mid - 1;
-                    _fileManager.DeleteTempFile(tempFileName);
-                    continue;
                 }
 
-                bool found = _fileSearcher.SearchInFile(tempFileName, searchString);
-                string commitTime = GetCommitTime(commit, _logWriter);
+                bool found = gitShowSuccess && _fileSearcher.SearchInFile(tempFileName, searchString);
 
                 _logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
                 _logWriter.Flush();
@@ -100,20 +99,20 @@ namespace GitContentSearch
                 int mid = left + (right - left) / 2;
                 string commit = commits[mid];
                 string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
+                string commitTime = GetCommitTime(commit, _logWriter);
 
+                bool gitShowSuccess = false;
                 try
                 {
                     _gitHelper.RunGitShow(commit, filePath, tempFileName);
+                    gitShowSuccess = true;
                 }
                 catch (Exception ex)
                 {
                     _logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
-                    right = mid - 1;
-                    continue;
                 }
 
-                bool found = _fileSearcher.SearchInFile(tempFileName, searchString);
-                string commitTime = GetCommitTime(commit, _logWriter);
+                bool found = gitShowSuccess && _fileSearcher.SearchInFile(tempFileName, searchString);
 
                 _logWriter.WriteLine($"Checked commit: {commit} at {commitTime}, found: {found}");
                 _logWriter.Flush();
