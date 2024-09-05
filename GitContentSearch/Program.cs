@@ -41,6 +41,11 @@ namespace GitContentSearch
                 }
             }
 
+            if (string.IsNullOrEmpty(workingDirectory))
+            {
+                workingDirectory = Directory.GetCurrentDirectory();
+            }
+
             string logAndTempFileDirectory = logDirectory ?? string.Empty;
             if (string.IsNullOrEmpty(logAndTempFileDirectory))
             {
@@ -59,6 +64,7 @@ namespace GitContentSearch
             {
                 logWriter.WriteLine(new string('=', 50));
                 logWriter.WriteLine($"GitContentSearch started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                logWriter.WriteLine($"Working Directory (Git Repo): {workingDirectory ?? "Not specified, using current directory"}");
                 logWriter.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
                 logWriter.WriteLine(new string('=', 50));
 
