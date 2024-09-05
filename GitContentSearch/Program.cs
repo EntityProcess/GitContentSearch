@@ -53,20 +53,26 @@ namespace GitContentSearch
                 }
             }
 
-            Console.WriteLine("Starting GitContentSearch...");
-            Console.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
-
-            var logWriter = new CompositeTextWriter(
+            using (var logWriter = new CompositeTextWriter(
                 Console.Out,
-                new StreamWriter(Path.Combine(logAndTempFileDirectory, "search_log.txt"), append: true)
-                );
+                new StreamWriter(Path.Combine(logAndTempFileDirectory, "search_log.txt"), append: true)))
+            {
+                logWriter.WriteLine(new string('=', 50));
+                logWriter.WriteLine($"GitContentSearch started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                logWriter.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
+                logWriter.WriteLine(new string('=', 50));
 
-            var processWrapper = new ProcessWrapper();
-            var gitHelper = new GitHelper(processWrapper, workingDirectory);
-            var fileSearcher = new FileSearcher();
-            var fileManager = new FileManager(logAndTempFileDirectory);
-            var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logWriter);
-            gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
+                var processWrapper = new ProcessWrapper();
+                var gitHelper = new GitHelper(processWrapper, workingDirectory);
+                var fileSearcher = new FileSearcher();
+                var fileManager = new FileManager(logAndTempFileDirectory);
+                var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logWriter);
+
+                gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
+
+                logWriter.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                logWriter.WriteLine(new string('=', 50));
+            }
         }
     }
 }

@@ -19,11 +19,14 @@ public class CompositeTextWriter : TextWriter
         }
     }
 
-    public override void WriteLine(string value)
+    public override void WriteLine(string? value)
     {
         foreach (var writer in _writers)
         {
-            writer.WriteLine(value);
+            if (value != null)
+            {
+                writer.WriteLine(value);
+            }
         }
     }
 

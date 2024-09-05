@@ -22,7 +22,7 @@ namespace GitContentSearch
 
         public void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "")
         {
-            var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit);
+            var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit, filePath);
             commits = commits.Reverse().ToArray();
 
             if (commits == null || commits.Length == 0)
@@ -40,7 +40,7 @@ namespace GitContentSearch
             int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString);
             int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, firstMatchIndex);
 
-            LogResults(firstMatchIndex, lastMatchIndex, commits, searchString, _logWriter);
+            LogResults(firstMatchIndex, lastMatchIndex, commits, searchString);
         }
 
         private int FindFirstMatchIndex(string[] commits, string filePath, string searchString)
@@ -54,7 +54,7 @@ namespace GitContentSearch
                 int mid = left + (right - left) / 2;
                 string commit = commits[mid];
                 string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
-                string commitTime = GetCommitTime(commit, _logWriter);
+                string commitTime = GetCommitTime(commit);
 
                 bool gitShowSuccess = false;
                 try
@@ -99,7 +99,7 @@ namespace GitContentSearch
                 int mid = left + (right - left) / 2;
                 string commit = commits[mid];
                 string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
-                string commitTime = GetCommitTime(commit, _logWriter);
+                string commitTime = GetCommitTime(commit);
 
                 bool gitShowSuccess = false;
                 try
@@ -133,7 +133,7 @@ namespace GitContentSearch
             return lastMatchIndex ?? -1;
         }
 
-        private string GetCommitTime(string commit, TextWriter logWriter)
+        private string GetCommitTime(string commit)
         {
             try
             {
@@ -141,25 +141,27 @@ namespace GitContentSearch
             }
             catch (Exception ex)
             {
-                logWriter.WriteLine($"Error retrieving commit time for {commit}: {ex.Message}");
+                _logWriter.WriteLine($"Error retrieving commit time for {commit}: {ex.Message}");
                 return "unknown time";
             }
         }
 
-        private void LogResults(int firstMatchIndex, int lastMatchIndex, string[] commits, string searchString, TextWriter logWriter)
+        private void LogResults(int firstMatchIndex, int lastMatchIndex, string[] commits, string searchString)
         {
             if (firstMatchIndex == -1)
             {
-                logWriter.WriteLine($"Search string \"{searchString}\" does not appear in any of the checked commits.");
+                _logWriter.WriteLine($"Search string \"{searchString}\" does not appear in any of the checked commits.");
             }
             else
             {
-                logWriter.WriteLine($"Search string \"{searchString}\" first appears in commit {commits[firstMatchIndex]}.");
+                _logWriter.WriteLine($"Search string \"{searchString}\" first appears in commit {commits[firstMatchIndex]}.");
                 if (lastMatchIndex != -1)
                 {
-                    logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex]}.");
+                    _logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex]}.");
                 }
             }
+
+            _logWriter.Flush();
         }
     }
 }
