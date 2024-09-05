@@ -30,6 +30,10 @@ dotnet publish -c Release
 
 After building the application, you will want to add the folder containing the GitContentSearch.exe (or equivalent for your operating system) to your PATH environment variable. This allows you to run the tool from any directory in your command line.
 
+```
+/path/to/your/git/repository/GitContentSearch/bin/Release/netX.X/publish/
+```
+
 ## Usage
 
 **1. Navigate to your Git directory**:
