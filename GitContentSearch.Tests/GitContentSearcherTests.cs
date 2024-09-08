@@ -17,7 +17,7 @@ namespace GitContentSearch.Tests
 
             // Simulate commits
             var commits = new[] { "commit5", "commit4", "commit3", "commit2", "commit1" };
-            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
+            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
             gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
 
             // Simulate string appearances based on the specific commit
@@ -51,7 +51,7 @@ namespace GitContentSearch.Tests
 
             // Simulate commits
             var commits = new[] { "commit1", "commit2", "commit3", "commit4", "commit5" };
-            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
+            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
             gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
 
             // Simulate no appearances of the string
@@ -80,7 +80,7 @@ namespace GitContentSearch.Tests
 
             // Simulate commits
             var commits = new[] { "commit1", "commit2", "commit3", "commit4", "commit5" };
-            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
+            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
             gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
 
             // Simulate string appearance: Found only in commit3
@@ -117,8 +117,8 @@ namespace GitContentSearch.Tests
             var restrictedCommits = new[] { "commit3", "commit2" };
 
             // Mock the GetGitCommits method to return only the restricted range when specified
-            gitHelperMock.Setup(g => g.GetGitCommits("commit2", "commit3")).Returns(restrictedCommits);
-            gitHelperMock.Setup(g => g.GetGitCommits(It.Is<string>(s => s != "commit2"), It.Is<string>(s => s != "commit3"))).Returns(allCommits);
+            gitHelperMock.Setup(g => g.GetGitCommits("commit2", "commit3", It.IsAny<string>())).Returns(restrictedCommits);
+            gitHelperMock.Setup(g => g.GetGitCommits(It.Is<string>(s => s != "commit2"), It.Is<string>(s => s != "commit3"), It.IsAny<string>())).Returns(allCommits);
 
             gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
 
@@ -162,7 +162,7 @@ namespace GitContentSearch.Tests
             var allCommits = new[] { "commit5", "commit4", "commit3", "commit2", "commit1" };
 
             // Mock the GetGitCommits method
-            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>())).Returns(allCommits);
+            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(allCommits);
             gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
 
             using (var stringWriter = new StringWriter())
