@@ -8,12 +8,14 @@ namespace GitContentSearch
         private readonly IFileSearcher _fileSearcher;
         private readonly IFileManager _fileManager;
         private readonly TextWriter _logWriter;
+        private readonly bool _disableLinearSearch;
 
-        public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager, TextWriter? logWriter = null)
+        public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager, bool disableLinearSearch, TextWriter? logWriter = null)
         {
             _gitHelper = gitHelper;
             _fileSearcher = fileSearcher;
             _fileManager = fileManager;
+            _disableLinearSearch = disableLinearSearch;
             _logWriter = logWriter ?? new CompositeTextWriter(
                 Console.Out,
                 new StreamWriter("search_log.txt", append: true)
@@ -79,6 +81,17 @@ namespace GitContentSearch
                 }
                 else
                 {
+                    if (!_disableLinearSearch)
+                    {
+                        // Use the linear search helper
+                        int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, left, mid - 1);
+                        if (linearSearchResult.HasValue)
+                        {
+                            firstMatchIndex = linearSearchResult;
+                            break;
+                        }
+                    }
+
                     left = mid + 1;
                 }
 
@@ -131,6 +144,44 @@ namespace GitContentSearch
             }
 
             return lastMatchIndex ?? -1;
+        }
+
+        private int? PerformLinearSearch(string[] commits, string filePath, string searchString, int left, int right)
+        {
+            int? matchIndex = null;
+
+            for (int i = left; i <= right; i++)
+            {
+                string commit = commits[i];
+                string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
+                string commitTime = GetCommitTime(commit);
+
+                bool gitShowSuccess = false;
+                try
+                {
+                    _gitHelper.RunGitShow(commit, filePath, tempFileName);
+                    gitShowSuccess = true;
+                }
+                catch (Exception ex)
+                {
+                    _logWriter.WriteLine($"Error retrieving file at commit {commit}: {ex.Message}");
+                }
+
+                bool found = gitShowSuccess && _fileSearcher.SearchInFile(tempFileName, searchString);
+
+                _logWriter.WriteLine($"Linear search commit: {commit} at {commitTime}, found: {found}");
+                _logWriter.Flush();
+
+                if (found)
+                {
+                    matchIndex = i; // Update matchIndex when a match is found
+                    break; // Stop search on first match (can be modified for last match)
+                }
+
+                _fileManager.DeleteTempFile(tempFileName);
+            }
+
+            return matchIndex;
         }
 
         private string GetCommitTime(string commit)

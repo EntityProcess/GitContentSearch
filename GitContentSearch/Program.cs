@@ -17,6 +17,7 @@ namespace GitContentSearch
             string searchString = args[1];
             string earliestCommit = "";
             string latestCommit = "";
+            bool disableLinearSearch = false;
             string? workingDirectory = null;
             string? logDirectory = null;
 
@@ -38,6 +39,10 @@ namespace GitContentSearch
                 else if (arg.StartsWith("--log-directory="))
                 {
                     logDirectory = arg.Replace("--log-directory=", "");
+                }
+                else if (arg == "--disable-linear-search")
+                {
+                    disableLinearSearch = true;
                 }
             }
 
@@ -72,7 +77,7 @@ namespace GitContentSearch
                 var gitHelper = new GitHelper(processWrapper, workingDirectory);
                 var fileSearcher = new FileSearcher();
                 var fileManager = new FileManager(logAndTempFileDirectory);
-                var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch, logWriter);
 
                 gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
 

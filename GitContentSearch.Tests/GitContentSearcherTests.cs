@@ -30,7 +30,7 @@ namespace GitContentSearch.Tests
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
                 gitContentSearcher.SearchContent("dummy/path.txt", "search string");
 
                 // Assert
@@ -60,7 +60,7 @@ namespace GitContentSearch.Tests
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
                 gitContentSearcher.SearchContent("dummy/path.txt", "search string");
 
                 // Assert
@@ -93,7 +93,7 @@ namespace GitContentSearch.Tests
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
                 gitContentSearcher.SearchContent("dummy/path.txt", "search string");
 
                 // Assert
@@ -132,7 +132,7 @@ namespace GitContentSearch.Tests
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
                 gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit2", "commit3");
 
                 // Assert
@@ -168,7 +168,7 @@ namespace GitContentSearch.Tests
             using (var stringWriter = new StringWriter())
             {
                 // Act
-                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), logWriter: stringWriter);
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
                 gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit4", "commit3");
 
                 // Assert
