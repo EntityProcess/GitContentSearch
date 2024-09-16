@@ -2,12 +2,14 @@
 
 ## Overview
 
-**GitContentSearch** is a command-line tool written in C# that searches for specific content within files across different Git commits. The app supports searching within Content files (.xls, .xlsx) and text files (.txt, .sql, .cs, etc.). It efficiently identifies the commit where the search string appears, using a binary search algorithm for faster results. Progress is logged to a file, allowing you to resume the search if interrupted.
+**GitContentSearch** is the ideal tool if you've ever wanted to do `git blame` on Excel files. This command-line tool allows you to efficiently search for content across different Git commits in Excel files (.xls, .xlsx) and text files (.txt, .sql, .cs, etc.), making it a powerful solution for tracking changes even in non-text formats.
+
+The app identifies the commit where the search string appears, using an optimized binary search algorithm and reverse linear search for faster results in large commit histories. Progress is logged to a file, allowing you to resume the search if interrupted.
 
 ## Features
 
-- **Binary Search**: Quickly identifies the commit where the search string first appears and last disappears.
-- **Supports Large Repos**: Handles extensive commit histories by narrowing down the search space.
+- **Optimized Search**: Quickly identifies the commit where the search string first appears and last disappears.
+- **Searches Across Multiple File Types**: Search in Excel files (.xls, .xlsx) and text files (.txt, .sql, .cs, etc.).
 - **Log File**: Keeps track of all checked commits and results, allowing you to continue the search later.
 - **Commit Range**: Specify an earliest and latest commit to limit the search scope.
 
@@ -57,6 +59,7 @@ Note: Make sure the file path does not start with a forward slash (/), as this c
 * `<search-string>`: The string you want to search for in the Content file.
 * `--earliest-commit=<commit>`: (Optional) The earliest commit to begin the search.
 * `--latest-commit=<commit>`: (Optional) The latest commit to end the search.
+- `--disable-linear-search`: Use this option to disable the linear search. When enabled, the tool will rely solely on binary search, which can improve performance in large repositories, especially if you already know that one of the commits contains the search string.
 * `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the user's temp directory if not provided.
 * `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the user's temp directory if not provided.
 
