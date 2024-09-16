@@ -178,5 +178,39 @@ namespace GitContentSearch.Tests
                 Assert.Contains("Error: The earliest commit is more recent than the latest commit.", logContent);
             }
         }
+
+        [Fact]
+        public void SearchContent_ShouldFindMatch_WhenBinarySearchMisses_LinearSearchEnabled()
+        {
+            // Arrange
+            var gitHelperMock = new Mock<IGitHelper>();
+            var fileSearcherMock = new Mock<IFileSearcher>();
+
+            // Simulate commits
+            var commits = new[] { "commit5", "commit4", "commit3", "commit2", "commit1" };
+            gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
+            gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+
+            // Simulate binary search skipping over commit2 where the string actually appears
+            fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit1")), It.IsAny<string>())).Returns(false);
+            fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit2")), It.IsAny<string>())).Returns(true); // Should be found by linear search
+            fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit3")), It.IsAny<string>())).Returns(false);
+            fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(false);
+            fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
+
+            using (var stringWriter = new StringWriter())
+            {
+                // Act
+                var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: false, logWriter: stringWriter); // Linear search enabled
+                gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+
+                // Assert
+                var logContent = stringWriter.ToString();
+
+                // Check the log for the correct first and last appearance commits
+                Assert.Contains("Search string \"search string\" first appears in commit commit2.", logContent);
+                Assert.Contains("Search string \"search string\" last appears in commit commit2.", logContent);
+            }
+        }
     }
 }
