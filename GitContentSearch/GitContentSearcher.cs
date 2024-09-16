@@ -39,16 +39,19 @@ namespace GitContentSearch
                 return;
             }
 
-            int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString);
-            int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, firstMatchIndex);
+            // Search the most recent match first with FindLastMatchIndex
+            int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, 0);
+
+            // Pass lastMatchIndex to FindFirstMatchIndex to optimize the search range
+            int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, lastMatchIndex);
 
             LogResults(firstMatchIndex, lastMatchIndex, commits, searchString);
         }
 
-        private int FindFirstMatchIndex(string[] commits, string filePath, string searchString)
+        private int FindFirstMatchIndex(string[] commits, string filePath, string searchString, int lastMatchIndex)
         {
             int left = 0;
-            int right = commits.Length - 1;
+            int right = lastMatchIndex; // Use lastMatchIndex as the upper bound
             int? firstMatchIndex = null;
 
             while (left <= right)
@@ -81,18 +84,7 @@ namespace GitContentSearch
                 }
                 else
                 {
-                    if (!_disableLinearSearch)
-                    {
-                        // Use the linear search helper
-                        int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, left, mid - 1);
-                        if (linearSearchResult.HasValue)
-                        {
-                            firstMatchIndex = linearSearchResult;
-                            break;
-                        }
-                    }
-
-                    left = mid + 1;
+                    left = mid + 1; // Search to the right
                 }
 
                 _fileManager.DeleteTempFile(tempFileName);
@@ -137,7 +129,18 @@ namespace GitContentSearch
                 }
                 else
                 {
-                    right = mid - 1;
+                    // If not found and linear search is enabled, check remaining commits with linear search
+                    if (!_disableLinearSearch)
+                    {
+                        int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, reverse: true);
+                        if (linearSearchResult.HasValue)
+                        {
+                            lastMatchIndex = linearSearchResult;
+                            break;
+                        }
+                    }
+
+                    right = mid - 1; // Continue searching to the left
                 }
 
                 _fileManager.DeleteTempFile(tempFileName);
@@ -146,11 +149,13 @@ namespace GitContentSearch
             return lastMatchIndex ?? -1;
         }
 
-        private int? PerformLinearSearch(string[] commits, string filePath, string searchString, int left, int right)
+        private int? PerformLinearSearch(string[] commits, string filePath, string searchString, int left, int right, bool reverse = false)
         {
-            int? matchIndex = null;
+            int step = reverse ? -1 : 1; // Use step to control direction of iteration
+            int start = reverse ? right : left;
+            int end = reverse ? left : right;
 
-            for (int i = left; i <= right; i++)
+            for (int i = start; reverse ? i >= end : i <= end; i += step)
             {
                 string commit = commits[i];
                 string tempFileName = _fileManager.GenerateTempFileName(commit, filePath);
@@ -172,16 +177,15 @@ namespace GitContentSearch
                 _logWriter.WriteLine($"Linear search commit: {commit} at {commitTime}, found: {found}");
                 _logWriter.Flush();
 
+                _fileManager.DeleteTempFile(tempFileName); // Always clean up the temp file
+
                 if (found)
                 {
-                    matchIndex = i; // Update matchIndex when a match is found
-                    break; // Stop search on first match (can be modified for last match)
+                    return i; // Return the index as soon as a match is found
                 }
-
-                _fileManager.DeleteTempFile(tempFileName);
             }
 
-            return matchIndex;
+            return null; // Return null if no match is found
         }
 
         private string GetCommitTime(string commit)
