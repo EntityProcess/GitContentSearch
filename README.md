@@ -45,13 +45,12 @@ Before running the tool, ensure you're in the directory where your Git repositor
 ```bash
 cd /path/to/your/git/repository
 ```
+
 **2. Run the tool**:
 
 ```bash
-GitContentSearch.exe <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>]
+GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>]
 ```
-
-Note: Make sure the file path does not start with a forward slash (/), as this can cause errors when Git tries to locate the file.
 
 ### Arguments
 
@@ -66,10 +65,12 @@ Note: Make sure the file path does not start with a forward slash (/), as this c
 ### Example
 
 ```bash
-GitContentSearch.exe "path/to/your/Content-file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456 --working-directory="/your/git/repo" --log-directory="/your/log/directory"
+GitContentSearch.exe "path/to/your/file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456 --working-directory="/your/git/repo" --log-directory="/your/log/directory"
 ```
 
 This will search for the string "SearchString" within the specified commit range, using the specified working directory for Git operations and storing logs and temporary files in the specified log directory.
+
+Note: The file is the remote path (e.g. `path/to/your/file.xlsx`), not the local path (e.g. `c:/repo/path/to/your/file.xlsx`).
 
 ## Output
 
