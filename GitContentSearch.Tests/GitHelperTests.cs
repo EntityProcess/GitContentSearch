@@ -34,7 +34,7 @@ namespace GitContentSearch.Tests
 			var processWrapperMock = new Mock<IProcessWrapper>();
 
 			var processResult = new ProcessResult(string.Empty, "fatal: bad object invalidCommit", 1);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), null, null)).Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -50,7 +50,7 @@ namespace GitContentSearch.Tests
 			var processWrapperMock = new Mock<IProcessWrapper>();
 
 			var processResult = new ProcessResult("2023-08-21 12:34:56 +0000", string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), null, null)).Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
