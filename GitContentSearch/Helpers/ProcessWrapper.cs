@@ -13,7 +13,24 @@ public class ProcessWrapper : IProcessWrapper
         return StartInternal(startInfo, outputStream);
     }
 
-    private ProcessResult StartInternal(ProcessStartInfo startInfo, Stream? outputStream)
+	public ProcessResult Start(string arguments, string? workingDirectory, Stream? outputStream)
+	{
+
+		var startInfo = new ProcessStartInfo
+		{
+			FileName = "git",
+			Arguments = arguments,
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+			UseShellExecute = false,
+			CreateNoWindow = true,
+			WorkingDirectory = workingDirectory
+		};
+
+		return StartInternal(startInfo, outputStream);
+	}
+
+	private ProcessResult StartInternal(ProcessStartInfo startInfo, Stream? outputStream)
     {
         using (var process = Process.Start(startInfo))
         {

@@ -6,192 +6,231 @@ using Xunit;
 
 namespace GitContentSearch.Tests
 {
-    public class GitHelperTests
-    {
-        [Fact]
-        public void GetGitCommits_ShouldReturnEmptyArray_OnGitFailure()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+	public class GitHelperTests
+	{
+		[Fact]
+		public void GetGitCommits_ShouldReturnEmptyList_OnGitFailure()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            var processResult = new ProcessResult(string.Empty, "Error occurred", 1);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			var processResult = new ProcessResult(string.Empty, "Error occurred", 1);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            // Act
-            var result = gitHelper.GetGitCommits("invalidCommit", "anotherInvalidCommit");
+			// Act
+			var result = gitHelper.GetGitCommits("invalidCommit", "anotherInvalidCommit");
 
-            // Assert
-            Assert.NotNull(result);
-            Assert.Empty(result);
-        }
+			// Assert
+			Assert.NotNull(result);
+			Assert.Empty(result);
+		}
 
-        [Fact]
-        public void GetCommitTime_ShouldThrowException_OnProcessFailure()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+		[Fact]
+		public void GetCommitTime_ShouldThrowException_OnProcessFailure()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            var processResult = new ProcessResult(string.Empty, "fatal: bad object invalidCommit", 1);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			var processResult = new ProcessResult(string.Empty, "fatal: bad object invalidCommit", 1);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => gitHelper.GetCommitTime("invalidCommit"));
-            Assert.Equal("Error getting commit time: fatal: bad object invalidCommit", exception.Message);
-        }
+			// Act & Assert
+			var exception = Assert.Throws<Exception>(() => gitHelper.GetCommitTime("invalidCommit"));
+			Assert.Equal("Error getting commit time: fatal: bad object invalidCommit", exception.Message);
+		}
 
-        [Fact]
-        public void GetCommitTime_ShouldReturnCorrectTime_OnSuccess()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+		[Fact]
+		public void GetCommitTime_ShouldReturnCorrectTime_OnSuccess()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            var processResult = new ProcessResult("2023-08-21 12:34:56 +0000", string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			var processResult = new ProcessResult("2023-08-21 12:34:56 +0000", string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            // Act
-            var result = gitHelper.GetCommitTime("validCommitHash");
+			// Act
+			var result = gitHelper.GetCommitTime("validCommitHash");
 
-            // Assert
-            Assert.Equal("2023-08-21 12:34:56 +0000", result);
-        }
+			// Assert
+			Assert.Equal("2023-08-21 12:34:56 +0000", result);
+		}
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnCorrectRange_WhenBothCommitsArePresent()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+		[Fact]
+		public void GetGitCommits_ShouldReturnCorrectRange_WhenBothCommitsArePresent()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            // Act
-            var result = gitHelper.GetGitCommits("commit2", "commit4");
+			// Act
+			var result = gitHelper.GetGitCommits("commit2", "commit4");
 
-            // Assert
-            Assert.Equal(new[] { "commit4", "commit3", "commit2" }, result);
-        }
+			// Assert
+			var expectedCommits = new List<Commit>
+							{
+								new Commit("commit4", ""),
+								new Commit("commit3", ""),
+								new Commit("commit2", "")
+							};
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnFullRange_WhenEarliestAndLatestAreEmpty()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+			AssertCommitsAreEqual(expectedCommits, result);
+		}
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+		[Fact]
+		public void GetGitCommits_ShouldReturnFullRange_WhenEarliestAndLatestAreEmpty()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
 
-            // Act
-            var result = gitHelper.GetGitCommits("", "");
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            // Assert
-            Assert.Equal(new[] { "commit5", "commit4", "commit3", "commit2", "commit1" }, result);
-        }
+			// Act
+			var result = gitHelper.GetGitCommits("", "");
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnPartialRange_WhenOnlyEarliestCommitIsSpecified()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+			// Assert
+			var expectedCommits = new List<Commit>
+							{
+								new Commit("commit5", ""),
+								new Commit("commit4", ""),
+								new Commit("commit3", ""),
+								new Commit("commit2", ""),
+								new Commit("commit1", "")
+							};
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			AssertCommitsAreEqual(expectedCommits, result);
+		}
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+		[Fact]
+		public void GetGitCommits_ShouldReturnPartialRange_WhenOnlyEarliestCommitIsSpecified()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            // Act
-            var result = gitHelper.GetGitCommits("commit3", "");
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
 
-            // Assert
-            Assert.Equal(new[] { "commit5", "commit4", "commit3" }, result);
-        }
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnPartialRange_WhenOnlyLatestCommitIsSpecified()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+			// Act
+			var result = gitHelper.GetGitCommits("commit3", "");
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			// Assert
+			var expectedCommits = new List<Commit>
+							{
+								new Commit("commit5", ""),
+								new Commit("commit4", ""),
+								new Commit("commit3", "")
+							};
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			AssertCommitsAreEqual(expectedCommits, result);
+		}
 
-            // Act
-            var result = gitHelper.GetGitCommits("", "commit3");
+		[Fact]
+		public void GetGitCommits_ShouldReturnPartialRange_WhenOnlyLatestCommitIsSpecified()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-            // Assert
-            Assert.Equal(new[] { "commit3", "commit2", "commit1" }, result);
-        }
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnEmptyArray_WhenCommitsAreInWrongOrder()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			// Act
+			var result = gitHelper.GetGitCommits("", "commit3");
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			// Assert
+			var expectedCommits = new List<Commit>
+							{
+								new Commit("commit3", ""),
+								new Commit("commit2", ""),
+								new Commit("commit1", "")
+							};
 
-            // Act
-            var result = gitHelper.GetGitCommits("commit4", "commit2");
+			AssertCommitsAreEqual(expectedCommits, result);
+		}
 
-            // Assert
-            Assert.Empty(result);
-        }
+		[Fact]
+		public void GetGitCommits_ShouldReturnEmptyList_WhenCommitsAreInWrongOrder()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnEmptyArray_WhenEarliestCommitIsNotFound()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			// Act
+			var result = gitHelper.GetGitCommits("commit4", "commit2");
 
-            // Act
-            var result = gitHelper.GetGitCommits("nonexistentCommit", "commit2");
+			// Assert
+			Assert.Empty(result);
+		}
 
-            // Assert
-            Assert.Empty(result);
-        }
+		[Fact]
+		public void GetGitCommits_ShouldReturnEmptyList_WhenEarliestCommitIsNotFound()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
 
-        [Fact]
-        public void GetGitCommits_ShouldReturnEmptyArray_WhenLatestCommitIsNotFound()
-        {
-            // Arrange
-            var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
 
-            var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
-            var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-            processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			var gitHelper = new GitHelper(processWrapperMock.Object);
 
-            var gitHelper = new GitHelper(processWrapperMock.Object);
+			// Act
+			var result = gitHelper.GetGitCommits("nonexistentCommit", "commit2");
 
-            // Act
-            var result = gitHelper.GetGitCommits("commit4", "nonexistentCommit");
+			// Assert
+			Assert.Empty(result);
+		}
 
-            // Assert
-            Assert.Empty(result);
-        }
-    }
+		[Fact]
+		public void GetGitCommits_ShouldReturnEmptyList_WhenLatestCommitIsNotFound()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+
+			var gitHelper = new GitHelper(processWrapperMock.Object);
+
+			// Act
+			var result = gitHelper.GetGitCommits("commit4", "nonexistentCommit");
+
+			// Assert
+			Assert.Empty(result);
+		}
+
+		private void AssertCommitsAreEqual(List<Commit> expectedCommits, List<Commit> actualCommits)
+		{
+			Assert.Equal(expectedCommits.Count, actualCommits.Count);
+			for (int i = 0; i < expectedCommits.Count; i++)
+			{
+				Assert.Equal(expectedCommits[i].CommitHash, actualCommits[i].CommitHash);
+			}
+		}
+	}
 }

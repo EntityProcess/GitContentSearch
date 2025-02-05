@@ -2,156 +2,196 @@
 
 namespace GitContentSearch
 {
-    public class GitHelper : IGitHelper
-    {
-        private readonly IProcessWrapper _processWrapper;
-        private readonly string? _workingDirectory;
+	public class GitHelper : IGitHelper
+	{
+		private readonly IProcessWrapper _processWrapper;
+		private readonly string? _workingDirectory;
+		private readonly bool _follow;
 
-        public GitHelper(IProcessWrapper processWrapper)
-        {
-            _processWrapper = processWrapper;
-        }
+		public GitHelper(IProcessWrapper processWrapper)
+		{
+			_processWrapper = processWrapper;
+		}
 
-        public GitHelper(IProcessWrapper processWrapper, string? workingDirectory)
-        {
-            _processWrapper = processWrapper;
-            _workingDirectory = workingDirectory;
-        }
+		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory) 
+			: this(processWrapper, workingDirectory, false)
+		{
+			
+		}
 
-        public string GetCommitTime(string commitHash)
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"show -s --format=%ci {commitHash}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = _workingDirectory // Set the working directory
-            };
+		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow)
+		{
+			_processWrapper = processWrapper;
+			_workingDirectory = workingDirectory;
+			_follow = follow;
+		}
 
-            var result = _processWrapper.Start(startInfo);
+		public string GetCommitTime(string commitHash)
+		{
+			var result = RunGitCommand($"show -s --format=%ci {commitHash}");
 
-            if (result.ExitCode != 0)
-            {
-                throw new Exception($"Error getting commit time: {result.StandardError}");
-            }
+			if (result.ExitCode != 0)
+			{
+				throw new Exception($"Error getting commit time: {result.StandardError}");
+			}
 
-            return result.StandardOutput;
-        }
+			return result.StandardOutput;
+		}
 
-        public void RunGitShow(string commit, string filePath, string outputFile)
-        {
-            string quotedFilePath = FormatFilePathForGit(filePath);
+		public void RunGitShow(string commit, string filePath, string outputFile)
+		{
+			string quotedFilePath = FormatFilePathForGit(filePath);
 
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"show {commit}:{quotedFilePath}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = _workingDirectory // Set the working directory
-            };
+			ProcessResult result;
+			using (var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write))
+			{
+				result = _processWrapper.Start($"show {commit}:{quotedFilePath}", _workingDirectory, outputStream);
+			}
 
-            ProcessResult result;
-            using (var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write))
-            {
-                result = _processWrapper.Start(startInfo, outputStream);
-            }
+			if (result.ExitCode != 0)
+			{
+				throw new Exception($"Error running git show: {result.StandardError}");
+			}
+		}
 
-            if (result.ExitCode != 0)
-            {
-                throw new Exception($"Error running git show: {result.StandardError}");
-            }
-        }
+		public List<Commit> GetGitCommits(string earliest, string latest)
+		{
+			return GetGitCommits(earliest, latest, string.Empty);
+		}
 
-        public string[] GetGitCommits(string earliest, string latest)
-        {
-            return GetGitCommits(earliest, latest, string.Empty);
-        }
+		public List<Commit> GetGitCommits(string earliest, string latest, string filePath)
+		{
+			var mostRecentCommitHash = GetMostRecentCommitHash();
+			var additionalArgs = string.IsNullOrEmpty(filePath) ? string.Empty : $"{(_follow ? "--follow" : string.Empty)} -- {FormatFilePathForGit(filePath)}";
+			var filteredCommits = GetCommits(additionalArgs);
 
-        public string[] GetGitCommits(string earliest, string latest, string filePath)
-        {
-            string[] GetCommits(string additionalArgs = "")
-            {
-                var arguments = $"log --pretty=format:%H {additionalArgs}".Trim();
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "git",
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = _workingDirectory
-                };
+			if (mostRecentCommitHash != null && !filteredCommits.Any(x => x.CommitHash == mostRecentCommitHash))
+			{
+				filteredCommits = new List<Commit> { new Commit(mostRecentCommitHash, filePath) }.Concat(filteredCommits).ToList();
+			}
 
-                var result = _processWrapper.Start(startInfo);
-                if (result.ExitCode != 0)
-                {
-                    Console.WriteLine($"Error retrieving git commits: {result.StandardError}");
-                    return Array.Empty<string>();
-                }
+			return FilterCommitsByRange(filteredCommits, earliest, latest);
+		}
 
-                return result.StandardOutput
-                             .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-                             .ToArray();
-            }
+		private string? GetMostRecentCommitHash()
+		{
+			var result = RunGitCommand("log --pretty=format:%H -n 1");
+			if (result == null || result.ExitCode != 0)
+			{
+				Console.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				return null;
+			}
 
-            var mostRecentCommit = GetCommits("-n 1").FirstOrDefault();
-            var filteredCommits = string.IsNullOrEmpty(filePath) ? GetCommits() : GetCommits($"-- {FormatFilePathForGit(filePath)}");
+			return result.StandardOutput.Trim();
+		}
 
-            if (mostRecentCommit != null && !filteredCommits.Contains(mostRecentCommit))
-            {
-                filteredCommits = new[] { mostRecentCommit }.Concat(filteredCommits).ToArray();
-            }
+		private List<Commit> GetCommits(string additionalArgs = "")
+		{
+			var arguments = $"log --pretty=format:%H {additionalArgs}".Trim();
+			var result = RunGitCommand(arguments);
+			if (result == null || result.ExitCode != 0)
+			{
+				Console.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				return new List<Commit>();
+			}
 
-            return FilterCommitsByRange(filteredCommits, earliest, latest);
-        }
+			return result.StandardOutput
+							 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+							 .Select(x => new Commit(x, string.Empty)).ToList();
+		}
 
-        private string FormatFilePathForGit(string filePath)
-        {
-            return filePath.StartsWith("/") ? $"\"{filePath.Substring(1)}\"" : $"\"{filePath}\"";
-        }
+		private List<Commit> GetCommitsWithFollow(string additionalArgs = "")
+		{
+			var arguments = $"log --name-status --pretty=format:%H {additionalArgs}".Trim();
+			var result = RunGitCommand(arguments);
+			if (result.ExitCode != 0)
+			{
+				Console.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				return new List<Commit>();
+			}
 
-        private string[] FilterCommitsByRange(string[] commits, string earliest, string latest)
-        {
-            int startIndex = 0;
-            int endIndex = commits.Length - 1;
+			var commitLines = result.StandardOutput
+							 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+							 .ToArray();
 
-            // Find the index of the latest commit (should be closer to start of the array)
-            if (!string.IsNullOrEmpty(latest))
-            {
-                startIndex = Array.IndexOf(commits, latest);
-                if (startIndex == -1)
-                {
-                    Console.WriteLine($"Latest commit {latest} not found.");
-                    return new string[0];
-                }
-            }
+			var commits = new List<Commit>();
+			string? currentCommitHash = null;
+			string? currentFilePath = null;
 
-            // Find the index of the earliest commit (should be closer to the end of the array)
-            if (!string.IsNullOrEmpty(earliest))
-            {
-                endIndex = Array.IndexOf(commits, earliest);
-                if (endIndex == -1)
-                {
-                    Console.WriteLine($"Earliest commit {earliest} not found.");
-                    return new string[0];
-                }
-            }
+			foreach (var line in commitLines)
+			{
+				if (line.Length == 40 && line.All(c => char.IsLetterOrDigit(c)))
+				{
+					currentCommitHash = line;
+				}
+				else if (line.StartsWith("R") && currentCommitHash != null)
+				{
+					var parts = line.Split('\t');
+					if (parts.Length == 3)
+					{
+						currentFilePath = parts[2];
+						commits.Add(new Commit(currentCommitHash, currentFilePath));
+					}
+				}
+				else if (currentCommitHash != null)
+				{
+					var parts = line.Split('\t');
+					if (parts.Length == 2)
+					{
+						currentFilePath = parts[1];
+						commits.Add(new Commit(currentCommitHash, currentFilePath));
+					}
+				}
+			}
 
-            // If the latest commit appears after the earliest commit in the list, the range is invalid
-            if (startIndex > endIndex)
-            {
-                Console.WriteLine("Invalid commit range specified: latest commit is earlier than the earliest commit.");
-                return new string[0];
-            }
+			return commits;
+		}
 
-            return commits.Skip(startIndex).Take(endIndex - startIndex + 1).ToArray();
-        }
-    }
+		private string FormatFilePathForGit(string filePath)
+		{
+			return filePath.StartsWith("/") ? $"\"{filePath.Substring(1)}\"" : $"\"{filePath}\"";
+		}
+
+		ProcessResult RunGitCommand(string arguments, Stream? outputStream = null)
+		{
+			return _processWrapper.Start(arguments, _workingDirectory, outputStream);
+		}
+
+		private List<Commit> FilterCommitsByRange(List<Commit> commits, string earliest, string latest)
+		{
+			int startIndex = 0;
+			int endIndex = commits.Count - 1;
+
+			// Find the index of the latest commit (should be closer to start of the list)
+			if (!string.IsNullOrEmpty(latest))
+			{
+				startIndex = commits.FindIndex(c => c.CommitHash == latest);
+				if (startIndex == -1)
+				{
+					Console.WriteLine($"Latest commit {latest} not found.");
+					return new List<Commit>();
+				}
+			}
+
+			// Find the index of the earliest commit (should be closer to the end of the list)
+			if (!string.IsNullOrEmpty(earliest))
+			{
+				endIndex = commits.FindIndex(c => c.CommitHash == earliest);
+				if (endIndex == -1)
+				{
+					Console.WriteLine($"Earliest commit {earliest} not found.");
+					return new List<Commit>();
+				}
+			}
+
+			// If the latest commit appears after the earliest commit in the list, the range is invalid
+			if (startIndex > endIndex)
+			{
+				Console.WriteLine("Invalid commit range specified: latest commit is earlier than the earliest commit.");
+				return new List<Commit>();
+			}
+
+			return commits.Skip(startIndex).Take(endIndex - startIndex + 1).ToList();
+		}
+	}
 }
