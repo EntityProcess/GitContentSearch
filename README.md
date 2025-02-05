@@ -12,6 +12,7 @@ The app identifies the commit where the search string appears, using an optimize
 - **Searches Across Multiple File Types**: Search in Excel files (.xls, .xlsx) and text files (.txt, .sql, .cs, etc.).
 - **Log File**: Keeps track of all checked commits and results, allowing you to continue the search later.
 - **Commit Range**: Specify an earliest and latest commit to limit the search scope.
+- **Follow File History**: Use the `--follow` option to follow file renames and history across commits.
 
 ## Installation
 
@@ -61,11 +62,12 @@ GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<comm
 - `--disable-linear-search`: Use this option to disable the linear search. When enabled, the tool will rely solely on binary search, which can improve performance in large repositories, especially if you already know that one of the commits contains the search string.
 * `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the user's temp directory if not provided.
 * `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the user's temp directory if not provided.
+* `--follow`: (Optional) Follow file renames and history across commits.
 
 ### Example
 
 ```bash
-GitContentSearch.exe "path/to/your/file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456 --working-directory="/your/git/repo" --log-directory="/your/log/directory"
+GitContentSearch.exe "path/to/your/file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456 --working-directory="/your/git/repo" --log-directory="/your/log/directory" --follow
 ```
 
 This will search for the string "SearchString" within the specified commit range, using the specified working directory for Git operations and storing logs and temporary files in the specified log directory.
