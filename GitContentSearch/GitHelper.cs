@@ -63,7 +63,7 @@ namespace GitContentSearch
 		{
 			var mostRecentCommitHash = GetMostRecentCommitHash();
 			var additionalArgs = string.IsNullOrEmpty(filePath) ? string.Empty : $"{(_follow ? "--follow" : string.Empty)} -- {FormatFilePathForGit(filePath)}";
-			var filteredCommits = GetCommits(additionalArgs);
+				var filteredCommits = _follow ? GetCommitsWithFollow(additionalArgs) : GetCommits(additionalArgs);
 
 			if (mostRecentCommitHash != null && !filteredCommits.Any(x => x.CommitHash == mostRecentCommitHash))
 			{
