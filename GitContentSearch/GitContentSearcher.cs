@@ -213,6 +213,10 @@ namespace GitContentSearch
 				if (lastMatchIndex != -1)
 				{
 					_logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex].CommitHash}.");
+					if (lastMatchIndex < commits.Count)
+					{
+						_logWriter.WriteLine($"Search string \"{searchString}\" disappeared in commit {commits[lastMatchIndex + 1].CommitHash}.");
+					}
 				}
 			}
 
