@@ -5,6 +5,8 @@ VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitContentSearch", "GitContentSearch.csproj", "{2E02DDE4-599E-4A43-A873-A9DCBD7AA557}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitContentSearch.Tests", "..\GitContentSearch.Tests\GitContentSearch.Tests.csproj", "{93FD2338-7DCE-4316-94AD-98BEA18EC7BF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{2E02DDE4-599E-4A43-A873-A9DCBD7AA557}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E02DDE4-599E-4A43-A873-A9DCBD7AA557}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2E02DDE4-599E-4A43-A873-A9DCBD7AA557}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93FD2338-7DCE-4316-94AD-98BEA18EC7BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93FD2338-7DCE-4316-94AD-98BEA18EC7BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93FD2338-7DCE-4316-94AD-98BEA18EC7BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93FD2338-7DCE-4316-94AD-98BEA18EC7BF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -33,7 +33,7 @@ namespace GitContentSearch
 				return;
 			}
 
-			if (commits.FindIndex(c => c.CommitHash == earliestCommit) < commits.FindIndex(c => c.CommitHash == latestCommit))
+			if (commits.FindIndex(c => c.CommitHash == earliestCommit) > commits.FindIndex(c => c.CommitHash == latestCommit))
 			{
 				_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
 				return;
