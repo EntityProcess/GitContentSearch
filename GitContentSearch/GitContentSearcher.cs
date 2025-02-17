@@ -33,7 +33,7 @@ namespace GitContentSearch
 				return;
 			}
 
-			if (commits.FindIndex(c => c.CommitHash == earliestCommit) > commits.FindIndex(c => c.CommitHash == latestCommit))
+			if (commits.FindIndex(c => c.CommitHash == earliestCommit) < commits.FindIndex(c => c.CommitHash == latestCommit))
 			{
 				_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
 				return;
@@ -213,7 +213,7 @@ namespace GitContentSearch
 				if (lastMatchIndex != -1)
 				{
 					_logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex].CommitHash}.");
-					if (lastMatchIndex < commits.Count)
+					if (lastMatchIndex < commits.Count - 1)
 					{
 						_logWriter.WriteLine($"Search string \"{searchString}\" disappeared in commit {commits[lastMatchIndex + 1].CommitHash}.");
 					}

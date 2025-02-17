@@ -65,6 +65,15 @@ namespace GitContentSearch
 			var additionalArgs = string.IsNullOrEmpty(filePath) ? string.Empty : $"{(_follow ? "--follow" : string.Empty)} -- {FormatFilePathForGit(filePath)}";
 				var filteredCommits = _follow ? GetCommitsWithFollow(additionalArgs) : GetCommits(additionalArgs);
 
+			// TODO: (HACK) since GetCommits does not return the file path, we need to set it manually
+			foreach (var commit in filteredCommits)
+			{
+				if (string.IsNullOrEmpty(commit.FilePath))
+				{
+					commit.FilePath = filePath;
+				}
+			}
+			
 			if (mostRecentCommitHash != null && !filteredCommits.Any(x => x.CommitHash == mostRecentCommitHash))
 			{
 				filteredCommits = new List<Commit> { new Commit(mostRecentCommitHash, filePath) }.Concat(filteredCommits).ToList();

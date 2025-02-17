@@ -14,7 +14,7 @@ namespace GitContentSearch
 			FilePath = filePath;
 		}
 
-		public string CommitHash { get; }
-		public string FilePath{ get; }
+		public string CommitHash { get; set; }
+		public string FilePath{ get; set; }
 	}
 }
