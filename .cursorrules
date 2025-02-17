@@ -1,58 +1,78 @@
-# .NET Development Rules
+# GitContentSearch Guidelines
 
-You are a senior .NET developer and an expert in C#, with focus on console applications.
+You are an expert **C#** and **.NET** developer working on a cross-platform application with both a **CLI** and **AvaloniaUI** interface. You are also proficient with **git** command line tools and design your solutions with a focus on clarity, performance, and maintainability.
 
 ## Code Style and Structure
-- Write concise, idiomatic C# code with accurate examples.
-- Follow .NET conventions and best practices.
-- Use object-oriented and functional programming patterns as appropriate.
-- Prefer LINQ and lambda expressions for collection operations.
-- Use descriptive variable and method names (e.g., 'IsFileValid', 'CalculateTotal').
-- Preserve existing code formatting and style unless specifically asked to change it.
-- Structure files according to .NET conventions.
+Write concise, idiomatic **C#** code that leverages the power of **.NET 8.0**. Emphasize object-oriented design and modern language features such as records, pattern matching, and async/await. Maintain consistency with the existing repository by preserving formatting and structure.
+- Structure your project files following **.NET** conventions and the established repository hierarchy.
+- Write modular code that clearly separates **git** integration logic from UI components and core business logic.
 
 ## Naming Conventions
-- Use PascalCase for class names, method names, and public members.
-- Use camelCase for local variables and private fields.
-- Use UPPERCASE for constants.
-- Prefix interface names with "I" (e.g., 'IFileProcessor').
+Adhere strictly to **.NET naming conventions**:
+- Use **PascalCase** for classes, methods, and public properties.
+- Use **camelCase** for local variables and private fields.
+- Use **UPPER_SNAKE_CASE** for constants.
+- Prefix interface names with **I** (e.g., **IGitHelper**, **IFileSearcher**).
 
 ## C# and .NET Usage
-- Use C# 10+ features when appropriate (e.g., record types, pattern matching, null-coalescing assignment).
-- Use Entity Framework Core effectively for database operations if needed.
+- Utilize **C# 10+** features where they improve clarity and performance.
+- Favor asynchronous programming with **async/await** for I/O-bound operations, including those interacting with the **git** command line.
+- Implement dependency injection to maintain loose coupling and facilitate unit testing.
+- Employ robust exception handling to capture and log errors, particularly when executing external processes.
 
-## Syntax and Formatting
-- Follow the existing project's formatting style.
-- Use C#'s expressive syntax (e.g., null-conditional operators, string interpolation)
-- Use 'var' for implicit typing when the type is obvious.
-- Only modify formatting when explicitly requested.
+## Git Integration Guidelines
+- Use the **git command line** to extract commit data and file contents. Ensure that commands like `git log`, `git show`, and other **git** operations are executed reliably.
+- Handle errors returned by **git** commands gracefully and log them for debugging purposes.
+- When generating temporary file names (e.g., for checking out specific commits), ensure the solution is **cross-platform** by using .NET APIs that abstract file system differences.
 
-## Error Handling and Validation
-- Use exceptions for exceptional cases, not for control flow.
-- Implement proper error logging using built-in .NET logging or a third-party logger.
-- Use Data Annotations or Fluent Validation for model validation if needed.
-- Implement appropriate exception handling.
+## AvaloniaUI Guidelines
+- For UI components, utilize **AvaloniaUI**'s **MVVM** pattern to separate logic from presentation.
+- Ensure that UI updates occur on the appropriate thread and that interactions with the **git** backend are asynchronous.
+- Leverage Avalonia’s styling and theming mechanisms to maintain a consistent look and feel across platforms.
 
-## Performance Optimization
-- Use asynchronous programming with async/await for I/O-bound operations.
-- Use efficient LINQ queries and avoid N+1 query problems.
-- Consider memory usage and performance implications for large data sets.
+## Error Handling and Logging
+- Always log significant events using a centralized logging mechanism, and ensure logs include precise timestamps and commit identifiers where applicable.
+- In cases where an external process fails (e.g., a **git** command), throw descriptive exceptions and capture stack traces to facilitate debugging.
+- Utilize structured logging to record the flow of **git** operations and user interactions with the UI.
 
-## Key Conventions
-- Use Dependency Injection for loose coupling and testability.
-- Use AutoMapper for object-to-object mapping if needed.
-- Implement background tasks using IHostedService or BackgroundService if required.
+## Testing and Validation
+- Write unit tests using **xUnit** and use mocking frameworks like **Moq** to simulate external dependencies such as **git** operations.
+- Ensure tests cover edge cases such as invalid commit ranges, missing files, or unexpected process failures.
+- Validate user inputs (for file paths, commit identifiers, etc.) rigorously before executing operations.
 
-## Testing
-- Write unit tests using xUnit.
-- Use Moq for mocking dependencies.
-- Write integration tests when appropriate.
+## Cross-Platform Considerations
+- Design all file and process operations to function consistently on Windows, macOS, and Linux.
+- Use .NET’s **Path** and **Process** APIs to avoid platform-specific issues.
+- Ensure that **AvaloniaUI** components adapt to various screen sizes and operating systems, maintaining usability and performance.
 
-## Console App Specific
-- Use command-line argument parsing effectively.
-- Provide clear user feedback and progress indicators.
-- Handle console input/output appropriately.
-- Consider implementing interactive menus when appropriate.
-- Use colors and formatting for better user experience when relevant.
+## Repository Tree Map
+.
+├── GitContentSearch.sln // The primary solution file for the GitContentSearch project.
+├── GitContentSearch.Tests
+│   ├── FileSearcherTests.cs       // Holds unit tests validating the functionality of file searching.
+│   ├── GitContentSearch.Tests.csproj // The project file for building the test suite.
+│   ├── GitContentSearcherTests.cs // Contains tests for the overall Git content search behavior.
+│   ├── GitHelperTests.cs          // Includes tests to ensure proper Git command integration.
+│   └── GlobalUsings.cs            // Declares global using directives to simplify test code.
+├── GitContentSearch
+│   ├── Commit.cs                // Defines the Commit model representing a Git commit.
+│   ├── FileSearcher.cs          // Implements logic to search within text and Excel files.
+│   ├── GitContentSearch.csproj  // The project file for building the main application.
+│   ├── GitContentSearch.sln     // A solution file that may serve as an alternative or additional reference.
+│   ├── GitContentSearcher.cs    // Orchestrates Git operations and content search across commits.
+│   ├── GitHelper.cs             // Provides helper methods for executing Git commands.
+│   ├── Program.cs               // Contains the main entry point of the application.
+│   ├── Helpers
+│   │   ├── CompositeTextWriter.cs // Aggregates multiple text writers for unified logging.
+│   │   ├── FileManager.cs         // Manages temporary file creation and deletion during searches.
+│   │   ├── ProcessResult.cs       // Represents the result of executing an external process.
+│   │   └── ProcessWrapper.cs      // Encapsulates starting and managing external processes.
+│   └── Interfaces
+│       ├── IFileManager.cs       // Defines the contract for file management operations.
+│       ├── IFileSearcher.cs      // Specifies the interface for file searching functions.
+│       ├── IGitContentSearcher.cs // Outlines methods for performing Git content searches.
+│       ├── IGitHelper.cs         // Declares the interface for Git helper operations.
+│       └── IProcessWrapper.cs    // Specifies the abstraction for wrapping process execution.
+└── README.md             // Provides an overview and usage instructions for the project.
 
-Follow the official Microsoft documentation and .NET guides for best practices in console application development.
+By following these guidelines, you will ensure that the GitContentSearch codebase remains robust, maintainable, and user-friendly across all supported platforms. Always be precise with **terminology** and document any decisions that deviate from these rules to aid future maintenance and collaboration.
