@@ -123,6 +123,7 @@ namespace GitContentSearch
 			var commits = new List<Commit>();
 			string? currentCommitHash = null;
 			string? currentFilePath = null;
+			string? previousFilePath = filePath;
 
 			foreach (var line in commitLines)
 			{
@@ -135,7 +136,16 @@ namespace GitContentSearch
 					var parts = line.Split('\t');
 					if (parts.Length == 3)
 					{
+						var oldPath = parts[1];
 						currentFilePath = parts[2];
+						if (oldPath != currentFilePath)
+						{
+							var commitTime = GetCommitTime(currentCommitHash);
+							Console.WriteLine($"File renamed in commit {currentCommitHash} at {commitTime.Trim()}:");
+							Console.WriteLine($"  From: {oldPath}");
+							Console.WriteLine($"  To:   {currentFilePath}");
+						}
+						previousFilePath = currentFilePath;
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
 					}
 				}
@@ -145,6 +155,13 @@ namespace GitContentSearch
 					if (parts.Length == 2)
 					{
 						currentFilePath = parts[1];
+						if (previousFilePath != currentFilePath)
+						{
+							var commitTime = GetCommitTime(currentCommitHash);
+							Console.WriteLine($"File path changed in commit {currentCommitHash} at {commitTime.Trim()}:");
+							Console.WriteLine($"  New path: {currentFilePath}");
+							previousFilePath = currentFilePath;
+						}
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
 					}
 				}
