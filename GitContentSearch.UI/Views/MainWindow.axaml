@@ -63,8 +63,7 @@
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0" 
                     Content="Start Search" 
-                    Command="{Binding StartSearchCommand}"
-                    IsEnabled="{Binding !IsSearching}"/>
+                    Command="{Binding StartSearchCommand}"/>
             <ProgressBar Grid.Column="1" 
                         Value="{Binding SearchProgress}" 
                         IsVisible="{Binding IsSearching}"
