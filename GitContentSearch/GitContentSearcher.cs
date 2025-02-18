@@ -22,8 +22,31 @@ namespace GitContentSearch
 			);
 		}
 
+		private bool FileExistsInCurrentCommit(string filePath)
+		{
+			try
+			{
+				string tempFileName = _fileManager.GenerateTempFileName("HEAD", filePath);
+				_gitHelper.RunGitShow("HEAD", filePath, tempFileName);
+				_fileManager.DeleteTempFile(tempFileName);
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
 		public void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "")
 		{
+			if (!FileExistsInCurrentCommit(filePath))
+			{
+				_logWriter.WriteLine($"Warning: The file '{filePath}' does not exist in the current commit.");
+				_logWriter.WriteLine("The search will not include commits where the file path was not found.");
+				_logWriter.WriteLine("Please enter a file path that exists in the latest commit for accurate results.");
+				_logWriter.WriteLine();
+			}
+
 			var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit, filePath);
 			commits.Reverse();
 
