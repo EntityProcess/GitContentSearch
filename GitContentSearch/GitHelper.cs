@@ -62,21 +62,16 @@ namespace GitContentSearch
 		public List<Commit> GetGitCommits(string earliest, string latest, string filePath)
 		{
 			var mostRecentCommitHash = GetMostRecentCommitHash();
-			var additionalArgs = string.IsNullOrEmpty(filePath) ? string.Empty : $"{(_follow ? "--follow" : string.Empty)} -- {FormatFilePathForGit(filePath)}";
-				var filteredCommits = _follow ? GetCommitsWithFollow(additionalArgs) : GetCommits(additionalArgs);
-
-			// TODO: (HACK) since GetCommits does not return the file path, we need to set it manually
-			foreach (var commit in filteredCommits)
-			{
-				if (string.IsNullOrEmpty(commit.FilePath))
-				{
-					commit.FilePath = filePath;
-				}
-			}
+			var additionalArgs = _follow ? "--follow" : string.Empty;
+			var filteredCommits = _follow 
+				? GetCommitsWithFollow(filePath, additionalArgs) 
+				: GetCommits(filePath, additionalArgs);
 			
 			if (mostRecentCommitHash != null && !filteredCommits.Any(x => x.CommitHash == mostRecentCommitHash))
 			{
-				filteredCommits = new List<Commit> { new Commit(mostRecentCommitHash, filePath) }.Concat(filteredCommits).ToList();
+				filteredCommits = new List<Commit> { new Commit(mostRecentCommitHash, filePath) }
+					.Concat(filteredCommits)
+					.ToList();
 			}
 
 			return FilterCommitsByRange(filteredCommits, earliest, latest);
@@ -94,9 +89,10 @@ namespace GitContentSearch
 			return result.StandardOutput.Trim();
 		}
 
-		private List<Commit> GetCommits(string additionalArgs = "")
+		private List<Commit> GetCommits(string filePath, string additionalArgs = "")
 		{
-			var arguments = $"log --pretty=format:%H {additionalArgs}".Trim();
+			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
+			var arguments = $"log --pretty=format:%H {additionalArgs} {filePathArg}".Trim();
 			var result = RunGitCommand(arguments);
 			if (result == null || result.ExitCode != 0)
 			{
@@ -106,12 +102,14 @@ namespace GitContentSearch
 
 			return result.StandardOutput
 							 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-							 .Select(x => new Commit(x, string.Empty)).ToList();
+							 .Select(x => new Commit(x, filePath))
+							 .ToList();
 		}
 
-		private List<Commit> GetCommitsWithFollow(string additionalArgs = "")
+		private List<Commit> GetCommitsWithFollow(string filePath, string additionalArgs = "")
 		{
-			var arguments = $"log --name-status --pretty=format:%H {additionalArgs}".Trim();
+			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
+			var arguments = $"log --name-status --pretty=format:%H {additionalArgs} {filePathArg}".Trim();
 			var result = RunGitCommand(arguments);
 			if (result.ExitCode != 0)
 			{
