@@ -41,9 +41,11 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var processWrapper = new ProcessWrapper();
-            var absolutePath = Path.IsPathRooted(FilePath) 
-                ? FilePath 
-                : Path.GetFullPath(Path.Combine(WorkingDirectory, FilePath));
+            // Trim leading slash if present, as it's meant to be relative to the git repository
+            var normalizedPath = FilePath.TrimStart('/');
+            var absolutePath = Path.IsPathRooted(normalizedPath) 
+                ? normalizedPath 
+                : Path.GetFullPath(Path.Combine(WorkingDirectory, normalizedPath));
 
             var directoryPath = Path.GetDirectoryName(absolutePath);
             if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
