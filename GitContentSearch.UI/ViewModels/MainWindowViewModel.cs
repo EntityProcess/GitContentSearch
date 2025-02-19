@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitContentSearch.Helpers;
 using GitContentSearch.UI.Helpers;
+using GitContentSearch.UI.Models;
+using GitContentSearch.UI.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -13,13 +15,16 @@ namespace GitContentSearch.UI.ViewModels;
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IStorageProvider _storageProvider;
+    private readonly SettingsService _settingsService;
     private IGitHelper? _gitHelper;
     private IFileSearcher? _fileSearcher;
     private IFileManager? _fileManager;
 
-    public MainWindowViewModel(IStorageProvider storageProvider)
+    public MainWindowViewModel(IStorageProvider storageProvider, SettingsService settingsService)
     {
         _storageProvider = storageProvider;
+        _settingsService = settingsService;
+        LoadSettingsAsync().ConfigureAwait(false);
     }
 
     [ObservableProperty]
@@ -59,6 +64,46 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
     private bool isSearching;
 
+    private async Task LoadSettingsAsync()
+    {
+        var settings = await _settingsService.LoadSettingsAsync();
+        if (settings != null)
+        {
+            FilePath = settings.FilePath;
+            SearchString = settings.SearchString;
+            EarliestCommit = settings.EarliestCommit;
+            LatestCommit = settings.LatestCommit;
+            WorkingDirectory = settings.WorkingDirectory;
+            LogDirectory = settings.LogDirectory;
+            DisableLinearSearch = settings.DisableLinearSearch;
+            FollowHistory = settings.FollowHistory;
+        }
+        // If settings is null, we'll keep the default empty string values initialized in the properties
+    }
+
+    public async Task SaveSettingsAsync()
+    {
+        var settings = new ApplicationSettings
+        {
+            FilePath = FilePath,
+            SearchString = SearchString,
+            EarliestCommit = EarliestCommit,
+            LatestCommit = LatestCommit,
+            WorkingDirectory = WorkingDirectory,
+            LogDirectory = LogDirectory,
+            DisableLinearSearch = DisableLinearSearch,
+            FollowHistory = FollowHistory
+        };
+
+        await _settingsService.SaveSettingsAsync(settings);
+    }
+
+    // Add this method to save settings when the window is closing
+    public void OnClosing()
+    {
+        SaveSettingsAsync().Wait();
+    }
+
     [RelayCommand]
     private async Task BrowseFilePathAsync()
     {
@@ -71,15 +116,37 @@ public partial class MainWindowViewModel : ObservableObject
         if (file.Count > 0)
         {
             var selectedFile = file[0];
-            // Convert local path to git path by removing working directory prefix
-            if (!string.IsNullOrEmpty(WorkingDirectory) && selectedFile.Path.LocalPath.StartsWith(WorkingDirectory))
+            var processWrapper = new ProcessWrapper();
+            var result = processWrapper.Start("rev-parse --show-toplevel", Path.GetDirectoryName(selectedFile.Path.LocalPath), null);
+            
+            if (result.ExitCode == 0)
             {
-                var relativePath = selectedFile.Path.LocalPath[WorkingDirectory.Length..].TrimStart('\\', '/');
-                FilePath = relativePath.Replace('\\', '/');
+                var gitRoot = result.StandardOutput.Trim().Replace('/', '\\'); // Normalize to Windows path
+                var filePath = selectedFile.Path.LocalPath;
+                
+                LogOutput.Add($"Git Root: {gitRoot}");
+                LogOutput.Add($"File Path: {filePath}");
+                
+                WorkingDirectory = gitRoot;
+                
+                // Convert paths to the same format and case for comparison
+                if (filePath.StartsWith(gitRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    var relativePath = filePath[gitRoot.Length..].TrimStart('\\', '/');
+                    FilePath = relativePath.Replace('\\', '/');
+                    LogOutput.Add($"Relative Path: {FilePath}");
+                }
+                else
+                {
+                    LogOutput.Add("Warning: File path does not start with git root path.");
+                    FilePath = string.Empty;
+                }
             }
             else
             {
-                LogOutput.Add("Warning: Selected file is not in the working directory. Please select a file within the Git repository.");
+                LogOutput.Add("Warning: Selected file is not in a Git repository. Please select a file within a Git repository.");
+                FilePath = string.Empty;
+                WorkingDirectory = string.Empty;
             }
         }
     }
@@ -157,7 +224,14 @@ public partial class MainWindowViewModel : ObservableObject
             writer.WriteLine(new string('=', 50));
 
             var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, DisableLinearSearch, writer);
-            await Task.Run(() => gitContentSearcher.SearchContent(FilePath, SearchString, EarliestCommit, LatestCommit));
+            
+            // Since we've already validated in CanStartSearch that FilePath and SearchString are non-empty,
+            // and EarliestCommit and LatestCommit have default empty string values, we can safely pass them
+            await Task.Run(() => gitContentSearcher.SearchContent(
+                FilePath,
+                SearchString,
+                EarliestCommit,
+                LatestCommit));
 
             writer.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             writer.WriteLine(new string('=', 50));

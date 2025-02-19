@@ -4,6 +4,7 @@ using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using GitContentSearch.UI.ViewModels;
 using GitContentSearch.UI.Views;
+using GitContentSearch.UI.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
@@ -33,12 +34,22 @@ public partial class App : Application
         {
             var mainWindow = new MainWindow();
             services.AddSingleton(mainWindow.StorageProvider);
+            services.AddSingleton<SettingsService>();
             services.AddTransient<MainWindowViewModel>();
             
             Services = services.BuildServiceProvider();
             
             var viewModel = Services.GetRequiredService<MainWindowViewModel>();
             mainWindow.DataContext = viewModel;
+
+            // Handle window closing to save settings
+            mainWindow.Closing += (s, e) =>
+            {
+                if (mainWindow.DataContext is MainWindowViewModel vm)
+                {
+                    vm.OnClosing();
+                }
+            };
             
             desktop.MainWindow = mainWindow;
         }
