@@ -1,9 +1,114 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="GitContentSearch.UI.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark">
              
     <Application.Styles>
         <FluentTheme />
+        
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#1A1B1F"/>
+        </Style>
+        
+        <!-- Base Button Style -->
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        
+        <!-- Primary Button Style (for main actions like Start Search) -->
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#00A3D9"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        
+        <Style Selector="Button.Primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#00B8F3"/>
+            <Setter Property="Foreground" Value="Black"/>
+        </Style>
+        
+        <Style Selector="Button.Primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#008DBB"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+        
+        <!-- Secondary Button Style (for actions like Browse) -->
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#00A3D9"/>
+            <Setter Property="BorderBrush" Value="#00A3D9"/>
+        </Style>
+        
+        <Style Selector="Button.Secondary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1A00A3D9"/>
+            <Setter Property="Foreground" Value="#00B8F3"/>
+            <Setter Property="BorderBrush" Value="#00B8F3"/>
+        </Style>
+        
+        <Style Selector="Button.Secondary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2A00A3D9"/>
+            <Setter Property="Foreground" Value="#008DBB"/>
+            <Setter Property="BorderBrush" Value="#008DBB"/>
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+        
+        <!-- Disabled States for Both Button Types -->
+        <Style Selector="Button.Primary:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4D00A3D9"/>
+            <Setter Property="Foreground" Value="#99000000"/>
+        </Style>
+        
+        <Style Selector="Button.Secondary:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#4D00A3D9"/>
+            <Setter Property="BorderBrush" Value="#4D00A3D9"/>
+        </Style>
+        
+        <!-- Template Binding for Both Button Types -->
+        <Style Selector="Button /template/ ContentPresenter">
+            <Setter Property="Background" Value="{TemplateBinding Background}"/>
+            <Setter Property="BorderBrush" Value="{TemplateBinding BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="{TemplateBinding BorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{TemplateBinding CornerRadius}"/>
+        </Style>
+        
+        <!-- TextBox Styles -->
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#2A2B2F"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#3A3B3F"/>
+        </Style>
+        
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#00A3D9"/>
+        </Style>
+        
+        <!-- CheckBox Styles -->
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="#00A3D9"/>
+            <Setter Property="BorderBrush" Value="#00A3D9"/>
+        </Style>
+        
+        <!-- TextBlock Styles -->
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        
+        <!-- ProgressBar Styles -->
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="#00A3D9"/>
+            <Setter Property="Background" Value="#2A2B2F"/>
+        </Style>
     </Application.Styles>
 </Application> 
