@@ -32,6 +32,56 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
     private string filePath = string.Empty;
 
+    [RelayCommand]
+    private async Task HandleFilePathLostFocusAsync()
+    {
+        if (string.IsNullOrWhiteSpace(FilePath) || string.IsNullOrWhiteSpace(WorkingDirectory))
+            return;
+
+        var processWrapper = new ProcessWrapper();
+        var absolutePath = Path.IsPathRooted(FilePath) 
+            ? FilePath 
+            : Path.GetFullPath(Path.Combine(WorkingDirectory, FilePath));
+
+        var result = await Task.Run(() => 
+            processWrapper.Start("rev-parse --show-toplevel", Path.GetDirectoryName(absolutePath), null));
+        
+        if (result.ExitCode == 0)
+        {
+            var gitRoot = result.StandardOutput.Trim().Replace('/', '\\'); // Normalize to Windows path
+            
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                LogOutput.Add($"Git Root: {gitRoot}");
+                LogOutput.Add($"File Path: {absolutePath}");
+                
+                WorkingDirectory = gitRoot;
+                
+                // Convert paths to the same format and case for comparison
+                if (absolutePath.StartsWith(gitRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    var relativePath = absolutePath[gitRoot.Length..].TrimStart('\\', '/');
+                    FilePath = relativePath.Replace('\\', '/');
+                    LogOutput.Add($"Relative Path: {FilePath}");
+                }
+                else
+                {
+                    LogOutput.Add("Warning: File path does not start with git root path.");
+                    FilePath = string.Empty;
+                }
+            });
+        }
+        else
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                LogOutput.Add("Warning: Selected file is not in a Git repository. Please select a file within a Git repository.");
+                FilePath = string.Empty;
+                WorkingDirectory = string.Empty;
+            });
+        }
+    }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
     private string searchString = string.Empty;
