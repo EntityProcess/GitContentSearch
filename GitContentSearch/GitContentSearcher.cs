@@ -72,25 +72,26 @@ namespace GitContentSearch
 				return;
 			}
 
+			// Calculate total possible commits to search
+			int totalPossibleSearches = commits.Count;
+			int totalSearchesDone = 0;
+
 			// Search the most recent match first with FindLastMatchIndex
-			int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, 0);
+			int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, 0, ref totalSearchesDone, totalPossibleSearches);
 
 			// Pass lastMatchIndex to FindFirstMatchIndex to optimize the search range
-			int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, lastMatchIndex);
+			int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, lastMatchIndex, ref totalSearchesDone, totalPossibleSearches);
 
 			LogResults(firstMatchIndex, lastMatchIndex, commits, searchString);
 			
 			_progress?.Report(1.0);
 		}
 
-		private int FindFirstMatchIndex(List<Commit> commits, string filePath, string searchString, int lastMatchIndex)
+		private int FindFirstMatchIndex(List<Commit> commits, string filePath, string searchString, int lastMatchIndex, ref int totalSearchesDone, int totalPossibleSearches)
 		{
 			int left = 0;
 			int right = lastMatchIndex; // Use lastMatchIndex as the upper bound
 			int? firstMatchIndex = null;
-			// For binary search, we'll make approximately log2(n) comparisons
-			int expectedSearches = (int)Math.Ceiling(Math.Log2(Math.Max(1, right - left + 1)));
-			int searchesDone = 0;
 
 			while (left <= right)
 			{
@@ -115,10 +116,9 @@ namespace GitContentSearch
 				_logWriter.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
 				_logWriter.Flush();
 
-				searchesDone++;
-				// Calculate progress between 62.5% and 100%
-				double searchProgress = (double)searchesDone / expectedSearches;
-				_currentProgress = 0.625 + (searchProgress * 0.375);
+				totalSearchesDone++;
+				// Calculate progress between 62.5% and 100% based on total possible searches
+				_currentProgress = 0.625 + ((double)totalSearchesDone / totalPossibleSearches * 0.375);
 				_progress?.Report(_currentProgress);
 
 				if (found)
@@ -137,14 +137,11 @@ namespace GitContentSearch
 			return firstMatchIndex ?? -1;
 		}
 
-		private int FindLastMatchIndex(List<Commit> commits, string filePath, string searchString, int searchStartIndex)
+		private int FindLastMatchIndex(List<Commit> commits, string filePath, string searchString, int searchStartIndex, ref int totalSearchesDone, int totalPossibleSearches)
 		{
 			int left = searchStartIndex == -1 ? 0 : searchStartIndex;
 			int right = commits.Count - 1;
 			int? lastMatchIndex = null;
-			// For binary search, we'll make approximately log2(n) comparisons
-			int expectedSearches = (int)Math.Ceiling(Math.Log2(Math.Max(1, right - left + 1)));
-			int searchesDone = 0;
 
 			while (left <= right)
 			{
@@ -169,10 +166,9 @@ namespace GitContentSearch
 				_logWriter.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
 				_logWriter.Flush();
 
-				searchesDone++;
-				// Calculate progress between 25% and 62.5%
-				double searchProgress = (double)searchesDone / expectedSearches;
-				_currentProgress = 0.25 + (searchProgress * 0.375);
+				totalSearchesDone++;
+				// Calculate progress between 25% and 62.5% based on total possible searches
+				_currentProgress = 0.25 + ((double)totalSearchesDone / totalPossibleSearches * 0.375);
 				_progress?.Report(_currentProgress);
 
 				if (found)
@@ -185,13 +181,10 @@ namespace GitContentSearch
 					// If not found and linear search is enabled, check remaining commits with linear search
 					if (!_disableLinearSearch)
 					{
-						int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, reverse: true);
+						int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, ref totalSearchesDone, totalPossibleSearches, reverse: true);
 						if (linearSearchResult.HasValue)
 						{
 							lastMatchIndex = linearSearchResult;
-							// Update progress to 62.5% since we're done with this phase
-							_currentProgress = 0.625;
-							_progress?.Report(_currentProgress);
 							break;
 						}
 					}
@@ -205,13 +198,11 @@ namespace GitContentSearch
 			return lastMatchIndex ?? -1;
 		}
 
-		private int? PerformLinearSearch(List<Commit> commits, string filePath, string searchString, int left, int right, bool reverse = false)
+		private int? PerformLinearSearch(List<Commit> commits, string filePath, string searchString, int left, int right, ref int totalSearchesDone, int totalPossibleSearches, bool reverse = false)
 		{
 			int step = reverse ? -1 : 1; // Use step to control direction of iteration
 			int start = reverse ? right : left;
 			int end = reverse ? left : right;
-			int totalSearches = Math.Abs(end - start) + 1;
-			int searchesDone = 0;
 
 			for (int i = start; reverse ? i >= end : i <= end; i += step)
 			{
@@ -235,10 +226,9 @@ namespace GitContentSearch
 				_logWriter.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
 				_logWriter.Flush();
 
-				searchesDone++;
-				// Calculate progress for linear search portion
-				double searchProgress = (double)searchesDone / totalSearches;
-				_currentProgress = 0.25 + (searchProgress * 0.375);
+				totalSearchesDone++;
+				// Calculate progress based on total possible searches
+				_currentProgress = 0.25 + ((double)totalSearchesDone / totalPossibleSearches * 0.375);
 				_progress?.Report(_currentProgress);
 
 				_fileManager.DeleteTempFile(tempFileName); // Always clean up the temp file
