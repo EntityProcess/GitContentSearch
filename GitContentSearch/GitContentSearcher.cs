@@ -12,14 +12,14 @@ namespace GitContentSearch
 
 		public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager, bool disableLinearSearch, TextWriter? logWriter = null)
 		{
-			_gitHelper = gitHelper;
-			_fileSearcher = fileSearcher;
-			_fileManager = fileManager;
-			_disableLinearSearch = disableLinearSearch;
 			_logWriter = logWriter ?? new CompositeTextWriter(
 				Console.Out,
 				new StreamWriter("search_log.txt", append: true)
 			);
+			_gitHelper = gitHelper;
+			_fileSearcher = fileSearcher;
+			_fileManager = fileManager;
+			_disableLinearSearch = disableLinearSearch;
 		}
 
 		private bool FileExistsInCurrentCommit(string filePath)

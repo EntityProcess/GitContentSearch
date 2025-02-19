@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.IO;
 
 namespace GitContentSearch
 {
@@ -7,23 +8,29 @@ namespace GitContentSearch
 		private readonly IProcessWrapper _processWrapper;
 		private readonly string? _workingDirectory;
 		private readonly bool _follow;
+		private readonly TextWriter _logWriter;
 
 		public GitHelper(IProcessWrapper processWrapper)
+			: this(processWrapper, null, false, Console.Out)
 		{
-			_processWrapper = processWrapper;
 		}
 
 		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory) 
-			: this(processWrapper, workingDirectory, false)
+			: this(processWrapper, workingDirectory, false, Console.Out)
 		{
-			
 		}
 
 		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow)
+			: this(processWrapper, workingDirectory, follow, Console.Out)
+		{
+		}
+
+		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow, TextWriter logWriter)
 		{
 			_processWrapper = processWrapper;
 			_workingDirectory = workingDirectory;
 			_follow = follow;
+			_logWriter = logWriter;
 		}
 
 		public string GetCommitTime(string commitHash)
@@ -81,7 +88,7 @@ namespace GitContentSearch
 			var result = RunGitCommand("log --pretty=format:%H -n 1");
 			if (result == null || result.ExitCode != 0)
 			{
-				Console.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				_logWriter.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return null;
 			}
 
@@ -95,7 +102,7 @@ namespace GitContentSearch
 			var result = RunGitCommand(arguments);
 			if (result == null || result.ExitCode != 0)
 			{
-				Console.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				_logWriter.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return new List<Commit>();
 			}
 
@@ -112,7 +119,7 @@ namespace GitContentSearch
 			var result = RunGitCommand(arguments);
 			if (result.ExitCode != 0)
 			{
-				Console.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				_logWriter.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return new List<Commit>();
 			}
 
@@ -141,9 +148,9 @@ namespace GitContentSearch
 						if (oldPath != currentFilePath)
 						{
 							var commitTime = GetCommitTime(currentCommitHash);
-							Console.WriteLine($"File renamed in commit {currentCommitHash} at {commitTime.Trim()}:");
-							Console.WriteLine($"  From: {oldPath}");
-							Console.WriteLine($"  To:   {currentFilePath}");
+							_logWriter.WriteLine($"File renamed in commit {currentCommitHash} at {commitTime.Trim()}:");
+							_logWriter.WriteLine($"  From: {oldPath}");
+							_logWriter.WriteLine($"  To:   {currentFilePath}");
 						}
 						previousFilePath = currentFilePath;
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
@@ -158,8 +165,8 @@ namespace GitContentSearch
 						if (previousFilePath != currentFilePath)
 						{
 							var commitTime = GetCommitTime(currentCommitHash);
-							Console.WriteLine($"File path changed in commit {currentCommitHash} at {commitTime.Trim()}:");
-							Console.WriteLine($"  New path: {currentFilePath}");
+							_logWriter.WriteLine($"File path changed in commit {currentCommitHash} at {commitTime.Trim()}:");
+							_logWriter.WriteLine($"  New path: {currentFilePath}");
 							previousFilePath = currentFilePath;
 						}
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
@@ -191,7 +198,7 @@ namespace GitContentSearch
 				startIndex = commits.FindIndex(c => c.CommitHash == latest);
 				if (startIndex == -1)
 				{
-					Console.WriteLine($"Latest commit {latest} not found.");
+					_logWriter.WriteLine($"Latest commit {latest} not found.");
 					return new List<Commit>();
 				}
 			}
@@ -202,7 +209,7 @@ namespace GitContentSearch
 				endIndex = commits.FindIndex(c => c.CommitHash == earliest);
 				if (endIndex == -1)
 				{
-					Console.WriteLine($"Earliest commit {earliest} not found.");
+					_logWriter.WriteLine($"Earliest commit {earliest} not found.");
 					return new List<Commit>();
 				}
 			}
@@ -210,7 +217,7 @@ namespace GitContentSearch
 			// If the latest commit appears after the earliest commit in the list, the range is invalid
 			if (startIndex > endIndex)
 			{
-				Console.WriteLine("Invalid commit range specified: latest commit is earlier than the earliest commit.");
+				_logWriter.WriteLine("Invalid commit range specified: latest commit is earlier than the earliest commit.");
 				return new List<Commit>();
 			}
 

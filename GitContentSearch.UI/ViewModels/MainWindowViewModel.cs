@@ -287,9 +287,6 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var processWrapper = new ProcessWrapper();
-            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory);
-            _fileSearcher = new FileSearcher();
-            
             string logAndTempFileDirectory = LogDirectory;
             if (string.IsNullOrEmpty(logAndTempFileDirectory))
             {
@@ -297,13 +294,14 @@ public partial class MainWindowViewModel : ObservableObject
                 Directory.CreateDirectory(logAndTempFileDirectory);
             }
 
-            _fileManager = new FileManager(logAndTempFileDirectory);
-
             var uiTextWriter = new UiTextWriter(LogOutput);
             var logFile = Path.Combine(logAndTempFileDirectory, "search_log.txt");
             var fileWriter = new StreamWriter(logFile, append: true);
+            var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
 
-            using var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
+            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, writer);
+            _fileSearcher = new FileSearcher();
+            _fileManager = new FileManager(logAndTempFileDirectory);
             
             writer.WriteLine(new string('=', 50));
             writer.WriteLine($"GitContentSearch started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
@@ -323,6 +321,10 @@ public partial class MainWindowViewModel : ObservableObject
 
             writer.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             writer.WriteLine(new string('=', 50));
+            
+            // Ensure we flush and dispose the writer
+            writer.Flush();
+            fileWriter.Dispose();
         }
         catch (Exception ex)
         {
