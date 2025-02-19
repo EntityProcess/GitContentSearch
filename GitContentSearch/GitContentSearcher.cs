@@ -65,11 +65,16 @@ namespace GitContentSearch
 
 			_progress?.Report(0.25); // Commits retrieved
 
-			if (commits.FindIndex(c => c.CommitHash == earliestCommit) > commits.FindIndex(c => c.CommitHash == latestCommit))
+			if (!string.IsNullOrEmpty(earliestCommit) && !string.IsNullOrEmpty(latestCommit))
 			{
-				_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
-				_progress?.Report(1.0);
-				return;
+				var earliestIndex = commits.FindIndex(c => c.CommitHash == earliestCommit);
+				var latestIndex = commits.FindIndex(c => c.CommitHash == latestCommit);
+				if (earliestIndex > latestIndex)
+				{
+					_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
+					_progress?.Report(1.0);
+					return;
+				}
 			}
 
 			// Calculate total possible commits to search
