@@ -24,6 +24,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _storageProvider = storageProvider;
         _settingsService = settingsService;
+        _logOutput.CollectionChanged += LogOutput_CollectionChanged;
         LoadSettingsAsync().ConfigureAwait(false);
     }
 
@@ -57,8 +58,38 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private double searchProgress;
 
+    private ObservableCollection<string> _logOutput = new();
+    public ObservableCollection<string> LogOutput
+    {
+        get => _logOutput;
+        set
+        {
+            if (_logOutput != null)
+            {
+                _logOutput.CollectionChanged -= LogOutput_CollectionChanged;
+            }
+            _logOutput = value;
+            if (_logOutput != null)
+            {
+                _logOutput.CollectionChanged += LogOutput_CollectionChanged;
+            }
+            OnPropertyChanged();
+            UpdateJoinedLogOutput();
+        }
+    }
+
+    private void LogOutput_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        UpdateJoinedLogOutput();
+    }
+
+    private void UpdateJoinedLogOutput()
+    {
+        JoinedLogOutput = string.Join(Environment.NewLine, LogOutput);
+    }
+
     [ObservableProperty]
-    private ObservableCollection<string> logOutput = new();
+    private string joinedLogOutput = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]

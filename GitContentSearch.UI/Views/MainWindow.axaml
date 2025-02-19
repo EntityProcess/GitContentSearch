@@ -97,17 +97,10 @@
                 CornerRadius="8"
                 Margin="0,16,0,0">
             <ScrollViewer Margin="8">
-                <ItemsControl ItemsSource="{Binding LogOutput}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}" 
-                                     TextWrapping="Wrap"
-                                     Foreground="#CCCCCC"
-                                     FontFamily="Consolas"
-                                     Margin="0,2"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <SelectableTextBlock Text="{Binding JoinedLogOutput}"
+                                   TextWrapping="Wrap"
+                                   Foreground="#CCCCCC"
+                                   FontFamily="Consolas"/>
             </ScrollViewer>
         </Border>
     </Grid>
