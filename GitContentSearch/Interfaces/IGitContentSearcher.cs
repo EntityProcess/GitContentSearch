@@ -8,6 +8,6 @@ namespace GitContentSearch
 {
     public interface IGitContentSearcher
     {
-        void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "");
+        void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "", IProgress<double>? progress = null);
     }
 }

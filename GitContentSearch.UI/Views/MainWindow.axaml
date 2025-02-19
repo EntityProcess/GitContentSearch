@@ -79,7 +79,7 @@
         <!-- Search Button and Progress -->
         <Grid Grid.Row="6" Margin="0,8">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="140"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0" 
@@ -88,9 +88,10 @@
                     Command="{Binding StartSearchCommand}"/>
             <ProgressBar Grid.Column="1" 
                         Height="4"
+                        Maximum="100"
                         Value="{Binding SearchProgress}" 
-                        IsVisible="{Binding IsSearching}"
-                        Margin="8,0"/>
+                        IsVisible="{Binding ShowProgress}"
+                        Margin="8,0,0,0"/>
         </Grid>
 
         <!-- Log Output -->

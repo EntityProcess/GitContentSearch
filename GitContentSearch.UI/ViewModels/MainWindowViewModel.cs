@@ -130,6 +130,9 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private double searchProgress;
 
+    [ObservableProperty]
+    private bool showProgress;
+
     private ObservableCollection<string> _logOutput = new();
     public ObservableCollection<string> LogOutput
     {
@@ -305,12 +308,15 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task StartSearchAsync()
     {
         IsSearching = true;
+        ShowProgress = true;
+        SearchProgress = 0;
         LogOutput.Clear();
         try
         {
             if (!Directory.Exists(WorkingDirectory))
             {
                 LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
+                ShowProgress = false;
                 return;
             }
 
@@ -339,13 +345,23 @@ public partial class MainWindowViewModel : ObservableObject
 
             var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, DisableLinearSearch, writer);
             
+            var progress = new Progress<double>(value =>
+            {
+                // Ensure UI updates happen on the UI thread
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    SearchProgress = value * 100;
+                });
+            });
+
             // Since we've already validated in CanStartSearch that FilePath and SearchString are non-empty,
             // and EarliestCommit and LatestCommit have default empty string values, we can safely pass them
             await Task.Run(() => gitContentSearcher.SearchContent(
                 FilePath,
                 SearchString,
                 EarliestCommit,
-                LatestCommit));
+                LatestCommit,
+                progress));
 
             writer.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             writer.WriteLine(new string('=', 50));
@@ -361,6 +377,8 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
             }
+            SearchProgress = 0;
+            ShowProgress = false;
         }
         finally
         {
