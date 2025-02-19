@@ -19,6 +19,15 @@ The app identifies the commit where the search string appears, using an optimize
 - **Commit Range**: Specify an earliest and latest commit to limit the search scope.
 - **Follow File History**: Use the `--follow` option (CLI) or toggle in UI to follow file renames and history across commits.
 
+## Download Windows Binaries
+
+You can download the Windows binaries from the releases page:
+
+- **CLI**: [GitContentSearch_CLI_win_x64.zip](https://github.com/EntityProcess/GitContentSearch/releases/latest)
+- **GUI**: [GitContentSearch_UI_win_x64.zip](https://github.com/EntityProcess/GitContentSearch/releases/latest)
+
+If you don't trust the binaries, you can perform the build steps below.
+
 ## Installation
 
 **Clone the repository**:
