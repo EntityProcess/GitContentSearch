@@ -51,7 +51,6 @@ public partial class MainWindowViewModel : ObservableObject
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     LogOutput.Add($"Error: Directory '{directoryPath}' does not exist or is invalid.");
-                    FilePath = string.Empty;
                     WorkingDirectory = string.Empty;
                 });
                 return;
