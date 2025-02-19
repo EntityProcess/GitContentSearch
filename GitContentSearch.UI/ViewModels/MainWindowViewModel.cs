@@ -38,47 +38,70 @@ public partial class MainWindowViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(FilePath) || string.IsNullOrWhiteSpace(WorkingDirectory))
             return;
 
-        var processWrapper = new ProcessWrapper();
-        var absolutePath = Path.IsPathRooted(FilePath) 
-            ? FilePath 
-            : Path.GetFullPath(Path.Combine(WorkingDirectory, FilePath));
+        try
+        {
+            var processWrapper = new ProcessWrapper();
+            var absolutePath = Path.IsPathRooted(FilePath) 
+                ? FilePath 
+                : Path.GetFullPath(Path.Combine(WorkingDirectory, FilePath));
 
-        var result = await Task.Run(() => 
-            processWrapper.Start("rev-parse --show-toplevel", Path.GetDirectoryName(absolutePath), null));
-        
-        if (result.ExitCode == 0)
-        {
-            var gitRoot = result.StandardOutput.Trim().Replace('/', '\\'); // Normalize to Windows path
-            
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            var directoryPath = Path.GetDirectoryName(absolutePath);
+            if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
             {
-                LogOutput.Add($"Git Root: {gitRoot}");
-                LogOutput.Add($"File Path: {absolutePath}");
-                
-                WorkingDirectory = gitRoot;
-                
-                // Convert paths to the same format and case for comparison
-                if (absolutePath.StartsWith(gitRoot, StringComparison.OrdinalIgnoreCase))
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    var relativePath = absolutePath[gitRoot.Length..].TrimStart('\\', '/');
-                    FilePath = relativePath.Replace('\\', '/');
-                    LogOutput.Add($"Relative Path: {FilePath}");
-                }
-                else
-                {
-                    LogOutput.Add("Warning: File path does not start with git root path.");
+                    LogOutput.Add($"Error: Directory '{directoryPath}' does not exist or is invalid.");
                     FilePath = string.Empty;
-                }
-            });
-        }
-        else
-        {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    WorkingDirectory = string.Empty;
+                });
+                return;
+            }
+
+            var result = await Task.Run(() => 
+                processWrapper.Start("rev-parse --show-toplevel", directoryPath, null));
+            
+            if (result.ExitCode == 0)
             {
-                LogOutput.Add("Warning: Selected file is not in a Git repository. Please select a file within a Git repository.");
-                FilePath = string.Empty;
-                WorkingDirectory = string.Empty;
-            });
+                var gitRoot = result.StandardOutput.Trim().Replace('/', '\\'); // Normalize to Windows path
+                
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LogOutput.Add($"Git Root: {gitRoot}");
+                    LogOutput.Add($"File Path: {absolutePath}");
+                    
+                    WorkingDirectory = gitRoot;
+                    
+                    // Convert paths to the same format and case for comparison
+                    if (absolutePath.StartsWith(gitRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var relativePath = absolutePath[gitRoot.Length..].TrimStart('\\', '/');
+                        FilePath = relativePath.Replace('\\', '/');
+                        LogOutput.Add($"Relative Path: {FilePath}");
+                    }
+                    else
+                    {
+                        LogOutput.Add("Warning: File path does not start with git root path.");
+                        FilePath = string.Empty;
+                    }
+                });
+            }
+            else
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LogOutput.Add("Warning: Selected file is not in a Git repository. Please select a file within a Git repository.");
+                    FilePath = string.Empty;
+                    WorkingDirectory = string.Empty;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            LogOutput.Add($"Error: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
+            }
         }
     }
 
@@ -286,6 +309,12 @@ public partial class MainWindowViewModel : ObservableObject
         LogOutput.Clear();
         try
         {
+            if (!Directory.Exists(WorkingDirectory))
+            {
+                LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
+                return;
+            }
+
             var processWrapper = new ProcessWrapper();
             string logAndTempFileDirectory = LogDirectory;
             if (string.IsNullOrEmpty(logAndTempFileDirectory))
