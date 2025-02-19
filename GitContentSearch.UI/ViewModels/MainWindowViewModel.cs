@@ -99,9 +99,16 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // Add this method to save settings when the window is closing
+    public async Task OnClosingAsync()
+    {
+        await SaveSettingsAsync();
+    }
+
+    // Keep a sync version that uses a different dispatcher to avoid deadlocks
     public void OnClosing()
     {
-        SaveSettingsAsync().Wait();
+        // Use Task.Run to avoid deadlocks by running on a different thread
+        Task.Run(async () => await SaveSettingsAsync()).Wait();
     }
 
     [RelayCommand]

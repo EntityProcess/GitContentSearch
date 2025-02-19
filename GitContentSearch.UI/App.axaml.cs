@@ -43,11 +43,26 @@ public partial class App : Application
             mainWindow.DataContext = viewModel;
 
             // Handle window closing to save settings
-            mainWindow.Closing += (s, e) =>
+            mainWindow.Closing += async (s, e) =>
             {
                 if (mainWindow.DataContext is MainWindowViewModel vm)
                 {
-                    vm.OnClosing();
+                    try 
+                    {
+                        // Only save settings and cancel if this is the first close attempt
+                        if (!e.IsProgrammatic)
+                        {
+                            e.Cancel = true;
+                            await vm.OnClosingAsync();
+                            // Now trigger the close programmatically
+                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => mainWindow.Close());
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log any errors but still allow the window to close
+                        Console.WriteLine($"Error saving settings: {ex}");
+                    }
                 }
             };
             
