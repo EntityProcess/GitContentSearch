@@ -16,6 +16,7 @@
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
         </Style>
         
         <!-- Primary Button Style (for main actions like Start Search) -->
