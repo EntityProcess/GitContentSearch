@@ -10,6 +10,5 @@ public record ApplicationSettings
     public string LatestCommit { get; init; } = string.Empty;
     public string WorkingDirectory { get; init; } = string.Empty;
     public string LogDirectory { get; init; } = string.Empty;
-    public bool DisableLinearSearch { get; init; }
     public bool FollowHistory { get; init; }
 } 

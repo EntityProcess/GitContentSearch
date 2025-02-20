@@ -84,7 +84,7 @@ cd /path/to/your/git/repository
 **2. Run the tool**:
 
 ```bash
-GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--disable-linear-search] [--follow]
+GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]
 ```
 
 ### CLI Arguments
@@ -93,7 +93,6 @@ GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<comm
 * `<search-string>`: The string you want to search for in the Content file.
 * `--earliest-commit=<commit>`: (Optional) The earliest commit to begin the search.
 * `--latest-commit=<commit>`: (Optional) The latest commit to end the search.
-- `--disable-linear-search`: Use this option to disable the linear search. When enabled, the tool will rely solely on binary search, which can improve performance in large repositories, especially if you already know that one of the commits contains the search string.
 * `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the user's temp directory if not provided.
 * `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the user's temp directory if not provided.
 * `--follow`: (Optional) Follow file renames and history across commits.

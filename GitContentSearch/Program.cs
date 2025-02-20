@@ -9,7 +9,7 @@ namespace GitContentSearch
 		{
 			if (args.Length < 2)
 			{
-				Console.WriteLine("Usage: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--disable-linear-search] [--follow]");
+				Console.WriteLine("Usage: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
 				return;
 			}
 
@@ -17,7 +17,6 @@ namespace GitContentSearch
 			string searchString = args[1];
 			string earliestCommit = "";
 			string latestCommit = "";
-			bool disableLinearSearch = false;
 			bool follow = false;
 			string? workingDirectory = null;
 			string? logDirectory = null;
@@ -40,10 +39,6 @@ namespace GitContentSearch
 				else if (arg.StartsWith("--log-directory="))
 				{
 					logDirectory = arg.Replace("--log-directory=", "");
-				}
-				else if (arg == "--disable-linear-search")
-				{
-					disableLinearSearch = true;
 				}
 				else if (arg == "--follow")
 				{
@@ -82,7 +77,7 @@ namespace GitContentSearch
 				var gitHelper = new GitHelper(processWrapper, workingDirectory, follow);
 				var fileSearcher = new FileSearcher();
 				var fileManager = new FileManager(logAndTempFileDirectory);
-				var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch, logWriter);
+				var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, false, logWriter);
 
 				gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
 

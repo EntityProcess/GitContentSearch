@@ -71,7 +71,6 @@
         <Grid Grid.Row="5" ColumnDefinitions="Auto,*" Margin="0,8">
             <TextBlock Grid.Column="0" Text="Options" VerticalAlignment="Center" Width="140" FontWeight="Medium"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0">
-                <CheckBox Content="Disable Linear Search" IsChecked="{Binding DisableLinearSearch}" Margin="0,0,24,0"/>
                 <CheckBox Content="Follow History" IsChecked="{Binding FollowHistory}"/>
             </StackPanel>
         </Grid>

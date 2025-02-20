@@ -124,9 +124,6 @@ public partial class MainWindowViewModel : ObservableObject
     private string logDirectory = string.Empty;
 
     [ObservableProperty]
-    private bool disableLinearSearch;
-
-    [ObservableProperty]
     private bool followHistory;
 
     [ObservableProperty]
@@ -183,7 +180,6 @@ public partial class MainWindowViewModel : ObservableObject
             LatestCommit = settings.LatestCommit;
             WorkingDirectory = settings.WorkingDirectory;
             LogDirectory = settings.LogDirectory;
-            DisableLinearSearch = settings.DisableLinearSearch;
             FollowHistory = settings.FollowHistory;
         }
         // If settings is null, we'll keep the default empty string values initialized in the properties
@@ -199,7 +195,6 @@ public partial class MainWindowViewModel : ObservableObject
             LatestCommit = LatestCommit,
             WorkingDirectory = WorkingDirectory,
             LogDirectory = LogDirectory,
-            DisableLinearSearch = DisableLinearSearch,
             FollowHistory = FollowHistory
         };
 
@@ -345,7 +340,7 @@ public partial class MainWindowViewModel : ObservableObject
             writer.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
             writer.WriteLine(new string('=', 50));
 
-            var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, DisableLinearSearch, writer);
+            var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, false, writer);
             
             var progress = new Progress<double>(value =>
             {
