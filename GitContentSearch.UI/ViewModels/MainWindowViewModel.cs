@@ -48,29 +48,29 @@ public partial class MainWindowViewModel : ObservableObject
                 : Path.GetFullPath(Path.Combine(WorkingDirectory, normalizedPath));
 
             var directoryPath = Path.GetDirectoryName(absolutePath);
-            if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
+            if (string.IsNullOrEmpty(directoryPath))
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    LogOutput.Add($"Error: Directory '{directoryPath}' does not exist or is invalid.");
-                    WorkingDirectory = string.Empty;
+                    LogOutput.Add($"Error: Invalid file path '{absolutePath}'.");
                 });
                 return;
             }
 
-            var result = await Task.Run(() => 
-                processWrapper.Start("rev-parse --show-toplevel", directoryPath, null));
+            // First check if we already have a valid git root in WorkingDirectory
+            var gitRootResult = await Task.Run(() => 
+                processWrapper.Start("rev-parse --show-toplevel", WorkingDirectory, null));
             
-            if (result.ExitCode == 0)
+            if (gitRootResult.ExitCode == 0)
             {
-                var gitRoot = result.StandardOutput.Trim().Replace('/', '\\'); // Normalize to Windows path
+                var gitRoot = gitRootResult.StandardOutput.Trim().Replace('/', '\\'); // Normalize to Windows path
                 
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     LogOutput.Add($"Git Root: {gitRoot}");
                     LogOutput.Add($"File Path: {absolutePath}");
                     
-                    WorkingDirectory = gitRoot;
+                    // Keep the existing working directory since it's a valid git root
                     
                     // Convert paths to the same format and case for comparison
                     if (absolutePath.StartsWith(gitRoot, StringComparison.OrdinalIgnoreCase))
@@ -81,8 +81,10 @@ public partial class MainWindowViewModel : ObservableObject
                     }
                     else
                     {
-                        LogOutput.Add("Warning: File path does not start with git root path.");
-                        FilePath = string.Empty;
+                        // If the path doesn't start with git root, it might be a remote path
+                        // Just keep the normalized path without clearing anything
+                        FilePath = normalizedPath.Replace('\\', '/');
+                        LogOutput.Add($"Using path as provided: {FilePath}");
                     }
                 });
             }
@@ -90,8 +92,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    LogOutput.Add("Warning: Selected file is not in a Git repository. Please select a file within a Git repository.");
-                    FilePath = string.Empty;
+                    LogOutput.Add("Warning: Current working directory is not a Git repository. Please select a valid Git repository directory.");
                     WorkingDirectory = string.Empty;
                 });
             }
