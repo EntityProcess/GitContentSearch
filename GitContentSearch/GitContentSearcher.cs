@@ -49,7 +49,6 @@ namespace GitContentSearch
 			{
 				_logWriter.WriteLine($"Warning: The file '{filePath}' does not exist in the current commit.");
 				_logWriter.WriteLine("The search will not include commits where the file path was not found.");
-				_logWriter.WriteLine("Please enter a file path that exists in the latest commit for accurate results.");
 				_logWriter.WriteLine();
 			}
 
