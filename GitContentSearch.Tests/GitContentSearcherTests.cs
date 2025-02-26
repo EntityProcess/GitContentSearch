@@ -1,248 +1,228 @@
 ﻿using GitContentSearch.Helpers;
-using Moq;
 using System;
 using System.IO;
 using Xunit;
 
 namespace GitContentSearch.Tests
 {
-	public class GitContentSearcherTests
+	public class GitContentSearcherTests : IDisposable
 	{
+		private readonly TestRepositoryHelper _repoHelper;
+		private readonly string _testFilePath = "test.txt";
+
+		public GitContentSearcherTests()
+		{
+			_repoHelper = new TestRepositoryHelper();
+		}
+
+		public void Dispose()
+		{
+			_repoHelper.Dispose();
+		}
+
 		[Fact]
 		public void SearchContent_ShouldLogFirstAndLastAppearance_Correctly()
 		{
 			// Arrange
-			var gitHelperMock = new Mock<IGitHelper>();
-			var fileSearcherMock = new Mock<IFileSearcher>();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Initial content", "Initial commit"); // commit1
+			var commit1 = _repoHelper.GetLastCommitHash();
 
-			var commits = new List<Commit>
-			{
-				new Commit("commit5", ""),
-				new Commit("commit4", ""),
-				new Commit("commit3", ""),
-				new Commit("commit2", ""),
-				new Commit("commit1", "")
-			};
-			gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
-			gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string", "Add search string"); // commit2
+			var commit2 = _repoHelper.GetLastCommitHash();
 
-			// Simulate string appearances based on the specific commit
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit1")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit2")), It.IsAny<string>())).Returns(true);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit3")), It.IsAny<string>())).Returns(true);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(true);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string again", "Keep search string"); // commit3
+			var commit3 = _repoHelper.GetLastCommitHash();
 
-			using (var stringWriter = new StringWriter())
-			{
-				// Act
-				var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: false, logWriter: stringWriter);
-				gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string still", "Still has search string"); // commit4
+			var commit4 = _repoHelper.GetLastCommitHash();
 
-				// Assert
-				var logContent = stringWriter.ToString();
-				Assert.Contains("Search string \"search string\" first appears in commit commit2.", logContent);
-				Assert.Contains("Search string \"search string\" last appears in commit commit4.", logContent);
-			}
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Final content", "Remove search string"); // commit5
+			var commit5 = _repoHelper.GetLastCommitHash();
+
+			var gitHelper = new GitHelper(new ProcessWrapper(), _repoHelper.RepositoryPath);
+			var fileSearcher = new FileSearcher();
+			var fileManager = new FileManager();
+
+			using var stringWriter = new StringWriter();
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: false, logWriter: stringWriter);
+
+			// Act
+			gitContentSearcher.SearchContent(_testFilePath, "search string");
+
+			// Assert
+			var logContent = stringWriter.ToString();
+			Assert.Contains($"Search string \"search string\" first appears in commit {commit2}", logContent);
+			Assert.Contains($"Search string \"search string\" last appears in commit {commit4}", logContent);
 		}
 
 		[Fact]
 		public void SearchContent_ShouldLogCorrectly_WhenStringNotFound()
 		{
 			// Arrange
-			var gitHelperMock = new Mock<IGitHelper>();
-			var fileSearcherMock = new Mock<IFileSearcher>();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Initial content", "Initial commit"); // commit1
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Different content", "Second commit"); // commit2
+			_repoHelper.CreateAndCommitFile(_testFilePath, "More content", "Third commit"); // commit3
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Other content", "Fourth commit"); // commit4
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Final content", "Final commit"); // commit5
 
-			var commits = new List<Commit>
-			{
-				new Commit("commit5", ""),
-				new Commit("commit4", ""),
-				new Commit("commit3", ""),
-				new Commit("commit2", ""),
-				new Commit("commit1", "")
-			};
-			gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
-			gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+			var gitHelper = new GitHelper(new ProcessWrapper(), _repoHelper.RepositoryPath);
+			var fileSearcher = new FileSearcher();
+			var fileManager = new FileManager();
 
-			fileSearcherMock.Setup(f => f.SearchInFile(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
+			using var stringWriter = new StringWriter();
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
 
-			using (var stringWriter = new StringWriter())
-			{
-				// Act
-				var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
-				gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+			// Act
+			gitContentSearcher.SearchContent(_testFilePath, "search string");
 
-				// Assert
-				var logContent = stringWriter.ToString();
-				Assert.Contains("Search string \"search string\" does not appear in any of the checked commits.", logContent);
-			}
+			// Assert
+			var logContent = stringWriter.ToString();
+			Assert.Contains("Search string \"search string\" does not appear in any of the checked commits.", logContent);
 		}
 
 		[Fact]
 		public void SearchContent_ShouldLogCorrectly_WhenStringAppearsInSingleCommit()
 		{
 			// Arrange
-			var gitHelperMock = new Mock<IGitHelper>();
-			var fileSearcherMock = new Mock<IFileSearcher>();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Initial content", "Initial commit"); // commit1
+			var commit1 = _repoHelper.GetLastCommitHash();
 
-			// Simulate commits
-			var commits = new List<Commit>
-			{
-				new Commit("commit5", ""),
-				new Commit("commit4", ""),
-				new Commit("commit3", ""),
-				new Commit("commit2", ""),
-				new Commit("commit1", "")
-			};
-			gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
-			gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Different content", "Second commit"); // commit2
+			var commit2 = _repoHelper.GetLastCommitHash();
 
-			// Simulate string appearance: Found only in commit3
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit3")), It.IsAny<string>())).Returns(true);
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string", "Add search string"); // commit3
+			var commit3 = _repoHelper.GetLastCommitHash();
 
-			using (var stringWriter = new StringWriter())
-			{
-				// Act
-				var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
-				gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Other content", "Remove search string"); // commit4
+			var commit4 = _repoHelper.GetLastCommitHash();
 
-				// Assert
-				var logContent = stringWriter.ToString();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Final content", "Final commit"); // commit5
+			var commit5 = _repoHelper.GetLastCommitHash();
 
-				// Check the log for the correct first and last appearance commits
-				Assert.Contains("Search string \"search string\" first appears in commit commit3.", logContent);
-				Assert.Contains("Search string \"search string\" last appears in commit commit3.", logContent);
-			}
+			var gitHelper = new GitHelper(new ProcessWrapper(), _repoHelper.RepositoryPath);
+			var fileSearcher = new FileSearcher();
+			var fileManager = new FileManager();
+
+			using var stringWriter = new StringWriter();
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
+
+			// Act
+			gitContentSearcher.SearchContent(_testFilePath, "search string");
+
+			// Assert
+			var logContent = stringWriter.ToString();
+			Assert.Contains($"Search string \"search string\" first appears in commit {commit3}", logContent);
+			Assert.Contains($"Search string \"search string\" last appears in commit {commit3}", logContent);
 		}
 
 		[Fact]
 		public void SearchContent_ShouldRestrictSearchToSpecifiedCommitRange()
 		{
 			// Arrange
-			var gitHelperMock = new Mock<IGitHelper>();
-			var fileSearcherMock = new Mock<IFileSearcher>();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Initial content", "Initial commit"); // commit1
+			var commit1 = _repoHelper.GetLastCommitHash();
 
-			var allCommits = new List<Commit>
-			{
-				new Commit("commit5", ""),
-				new Commit("commit4", ""),
-				new Commit("commit3", ""),
-				new Commit("commit2", ""),
-				new Commit("commit1", "")
-			};
-			var restrictedCommits = new List<Commit>
-			{
-				new Commit("commit3", ""),
-				new Commit("commit2", "")
-			};
-			gitHelperMock.Setup(g => g.GetGitCommits("commit2", "commit3", It.IsAny<string>())).Returns(restrictedCommits);
-			gitHelperMock.Setup(g => g.GetGitCommits(It.Is<string>(s => s != "commit2"), It.Is<string>(s => s != "commit3"), It.IsAny<string>())).Returns(allCommits);
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string", "Add search string"); // commit2
+			var commit2 = _repoHelper.GetLastCommitHash();
 
-			gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Different content", "Remove search string"); // commit3
+			var commit3 = _repoHelper.GetLastCommitHash();
 
-			// Simulate string appearances based on the specific commit
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit1")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit2")), It.IsAny<string>())).Returns(true);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit3")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
+			_repoHelper.CreateAndCommitFile(_testFilePath, "More content", "Another change"); // commit4
+			var commit4 = _repoHelper.GetLastCommitHash();
 
-			using (var stringWriter = new StringWriter())
-			{
-				// Act
-				var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
-				gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit2", "commit3");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Final content", "Final change"); // commit5
+			var commit5 = _repoHelper.GetLastCommitHash();
 
-				// Assert
-				var logContent = stringWriter.ToString();
+			var gitHelper = new GitHelper(new ProcessWrapper(), _repoHelper.RepositoryPath);
+			var fileSearcher = new FileSearcher();
+			var fileManager = new FileManager();
 
-				// Ensure only the specified commit range was searched
-				Assert.Contains("Checked commit: commit3", logContent);
-				Assert.Contains("Checked commit: commit2", logContent);
-				Assert.DoesNotContain("Checked commit: commit1", logContent);
-				Assert.DoesNotContain("Checked commit: commit4", logContent);
-				Assert.DoesNotContain("Checked commit: commit5", logContent);
+			using var stringWriter = new StringWriter();
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
 
-				// Check the log for the correct first and last appearance commits within the range
-				Assert.Contains("Search string \"search string\" first appears in commit commit2.", logContent);
-				Assert.Contains("Search string \"search string\" last appears in commit commit2.", logContent);
-			}
+			// Act - Pass commit2 as earliest (older) and commit3 as latest (newer)
+			gitContentSearcher.SearchContent(_testFilePath, "search string", commit2, commit3);
+
+			// Assert
+			var logContent = stringWriter.ToString();
+
+			// Ensure only the specified commit range was searched
+			Assert.Contains($"Checked commit: {commit3}", logContent);
+			Assert.Contains($"Checked commit: {commit2}", logContent);
+			Assert.DoesNotContain($"Checked commit: {commit1}", logContent);
+			Assert.DoesNotContain($"Checked commit: {commit4}", logContent);
+			Assert.DoesNotContain($"Checked commit: {commit5}", logContent);
+
+			// Check the log for the correct first and last appearance commits within the range
+			Assert.Contains($"Search string \"search string\" first appears in commit {commit2}", logContent);
+			Assert.Contains($"Search string \"search string\" last appears in commit {commit2}", logContent);
 		}
 
 		[Fact]
 		public void SearchContent_ShouldLogError_WhenEarliestCommitIsMoreRecentThanLatestCommit()
 		{
 			// Arrange
-			var gitHelperMock = new Mock<IGitHelper>();
-			var fileSearcherMock = new Mock<IFileSearcher>();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Initial content", "Initial commit"); // commit1
+			var commit1 = _repoHelper.GetLastCommitHash();
 
-			// Simulate commits in descending order as returned by Git
-			var allCommits = new List<Commit>
-			{
-				new Commit("commit5", ""),
-				new Commit("commit4", ""),
-				new Commit("commit3", ""),
-				new Commit("commit2", ""),
-				new Commit("commit1", "")
-			};
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string", "Add search string"); // commit2
+			var commit2 = _repoHelper.GetLastCommitHash();
 
-			// Mock the GetGitCommits method
-			gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(allCommits);
-			gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Different content", "Remove search string"); // commit3
+			var commit3 = _repoHelper.GetLastCommitHash();
 
-			using (var stringWriter = new StringWriter())
-			{
-				// Act
-				var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: true, logWriter: stringWriter);
-				gitContentSearcher.SearchContent("dummy/path.txt", "search string", "commit4", "commit3");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "More content", "Another change"); // commit4
+			var commit4 = _repoHelper.GetLastCommitHash();
 
-				// Assert
-				var logContent = stringWriter.ToString();
+			var gitHelper = new GitHelper(new ProcessWrapper(), _repoHelper.RepositoryPath);
+			var fileSearcher = new FileSearcher();
+			var fileManager = new FileManager();
 
-				// Ensure that an error message is logged
-				Assert.Contains("Error: The earliest commit is more recent than the latest commit.", logContent);
-			}
+			using var stringWriter = new StringWriter();
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
+
+			// Act - Pass commit3 as earliest (more recent) and commit2 as latest (older)
+			gitContentSearcher.SearchContent(_testFilePath, "search string", commit3, commit2);
+
+			// Assert
+			var logContent = stringWriter.ToString();
+			Assert.Contains("Error: The earliest commit is more recent than the latest commit.", logContent);
 		}
 
 		[Fact]
 		public void SearchContent_ShouldFindMatch_WhenBinarySearchMisses_LinearSearchEnabled()
 		{
 			// Arrange
-			var gitHelperMock = new Mock<IGitHelper>();
-			var fileSearcherMock = new Mock<IFileSearcher>();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Initial content", "Initial commit"); // commit1
+			var commit1 = _repoHelper.GetLastCommitHash();
 
-			// Simulate commits
-			var commits = new List<Commit>
-			{
-				new Commit("commit5", ""),
-				new Commit("commit4", ""),
-				new Commit("commit3", ""),
-				new Commit("commit2", ""),
-				new Commit("commit1", "")
-			};
-			gitHelperMock.Setup(g => g.GetGitCommits(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(commits);
-			gitHelperMock.Setup(g => g.GetCommitTime(It.IsAny<string>())).Returns("2023-08-21 12:00:00");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Content with search string", "Add search string"); // commit2
+			var commit2 = _repoHelper.GetLastCommitHash();
 
-			// Simulate binary search skipping over commit2 where the string actually appears
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit1")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit2")), It.IsAny<string>())).Returns(true); // Should be found by linear search
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit3")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit4")), It.IsAny<string>())).Returns(false);
-			fileSearcherMock.Setup(f => f.SearchInFile(It.Is<string>(file => file.Contains("commit5")), It.IsAny<string>())).Returns(false);
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Different content", "Remove search string"); // commit3
+			var commit3 = _repoHelper.GetLastCommitHash();
 
-			using (var stringWriter = new StringWriter())
-			{
-				// Act
-				var gitContentSearcher = new GitContentSearcher(gitHelperMock.Object, fileSearcherMock.Object, new FileManager(), disableLinearSearch: false, logWriter: stringWriter);
-				gitContentSearcher.SearchContent("dummy/path.txt", "search string");
+			_repoHelper.CreateAndCommitFile(_testFilePath, "More content", "Another change"); // commit4
+			var commit4 = _repoHelper.GetLastCommitHash();
 
-				// Assert
-				var logContent = stringWriter.ToString();
+			_repoHelper.CreateAndCommitFile(_testFilePath, "Final content", "Final change"); // commit5
+			var commit5 = _repoHelper.GetLastCommitHash();
 
-				// Check the log for the correct first and last appearance commits
-				Assert.Contains("Search string \"search string\" first appears in commit commit2.", logContent);
-				Assert.Contains("Search string \"search string\" last appears in commit commit2.", logContent);
-			}
+			var gitHelper = new GitHelper(new ProcessWrapper(), _repoHelper.RepositoryPath);
+			var fileSearcher = new FileSearcher();
+			var fileManager = new FileManager();
+
+			using var stringWriter = new StringWriter();
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: false, logWriter: stringWriter);
+
+			// Act
+			gitContentSearcher.SearchContent(_testFilePath, "search string");
+
+			// Assert
+			var logContent = stringWriter.ToString();
+			Assert.Contains($"Search string \"search string\" first appears in commit {commit2}", logContent);
+			Assert.Contains($"Search string \"search string\" last appears in commit {commit2}", logContent);
 		}
 	}
 }

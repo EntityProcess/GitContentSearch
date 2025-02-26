@@ -18,15 +18,109 @@ namespace GitContentSearch
             }
         }
 
+        public bool SearchInStream(Stream stream, string searchString, bool isBinary)
+        {
+            // Save the current position to restore it later
+            long originalPosition = stream.Position;
+            
+            try
+            {
+                if (isBinary)
+                {
+                    stream.Position = 0;
+                    // For Excel files
+                    IWorkbook workbook;
+                    try
+                    {
+                        workbook = new XSSFWorkbook(stream); // Try XLSX format first
+                    }
+                    catch
+                    {
+                        stream.Position = 0;
+                        workbook = new HSSFWorkbook(stream); // Fall back to XLS format
+                    }
+
+                    using (workbook)
+                    {
+                        for (int i = 0; i < workbook.NumberOfSheets; i++)
+                        {
+                            var sheet = workbook.GetSheetAt(i);
+                            if (sheet == null) continue;
+
+                            foreach (IRow row in sheet)
+                            {
+                                if (row == null) continue;
+
+                                foreach (ICell cell in row)
+                                {
+                                    if (cell == null) continue;
+
+                                    var cellValue = GetCellValueAsString(cell);
+                                    if (!string.IsNullOrEmpty(cellValue) && 
+                                        cellValue.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+                else
+                {
+                    // For text files
+                    stream.Position = 0;
+                    using var reader = new StreamReader(stream, leaveOpen: true);
+                    string? line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+            finally
+            {
+                // Restore the original position
+                try { stream.Position = originalPosition; } catch { }
+            }
+        }
+
         public bool IsTextFile(string filePath)
+        {
+            // For file paths that exist on disk
+            if (File.Exists(filePath))
+            {
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                return IsTextStream(stream);
+            }
+
+            // For file paths that don't exist, use extension-based detection as fallback
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension switch
+            {
+                ".xls" or ".xlsx" => false,
+                ".txt" or ".cs" or ".json" or ".xml" or ".config" or ".md" or ".yml" or ".yaml" => true,
+                _ => true // Default to text for unknown extensions
+            };
+        }
+
+        public bool IsTextStream(Stream stream)
         {
             const int sampleSize = 512;
             byte[] buffer = new byte[sampleSize];
-
-            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            
+            // Save the current position
+            long originalPosition = stream.Position;
+            
+            try
             {
-                int bytesRead = fileStream.Read(buffer, 0, buffer.Length);
-
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                
                 for (int i = 0; i < bytesRead; i++)
                 {
                     byte b = buffer[i];
@@ -40,105 +134,50 @@ namespace GitContentSearch
                         return false;
                     }
                 }
+                return true;
             }
-            return true;
+            finally
+            {
+                // Restore the original position
+                try { stream.Position = originalPosition; } catch { }
+            }
+        }
+
+        public string GetCellValueAsString(ICell cell)
+        {
+            return cell.CellType switch
+            {
+                CellType.String => cell.StringCellValue,
+                CellType.Numeric => cell.NumericCellValue.ToString(),
+                CellType.Boolean => cell.BooleanCellValue.ToString(),
+                CellType.Formula => cell.CellFormula,
+                _ => string.Empty
+            };
         }
 
         public bool SearchInTextFile(string fileName, string searchString)
         {
             try
             {
-                foreach (var line in File.ReadLines(fileName))
-                {
-                    if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
+                using var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                return SearchInStream(stream, searchString, false);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Error reading text file {fileName}: {ex.Message}");
                 return false;
             }
-
-            return false;
         }
 
         public bool SearchInExcel(string fileName, string searchString)
         {
             try
             {
-                using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read))
-                {
-                    IWorkbook workbook;
-                    string extension = Path.GetExtension(fileName).ToLower();
-
-                    if (extension == ".xls")
-                    {
-                        workbook = new HSSFWorkbook(fileStream);
-                    }
-                    else if (extension == ".xlsx")
-                    {
-                        workbook = new XSSFWorkbook(fileStream);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Unsupported file extension: {extension}");
-                        return false;
-                    }
-
-                    for (int i = 0; i < workbook.NumberOfSheets; i++)
-                    {
-                        var sheet = workbook.GetSheetAt(i);
-                        if (sheet == null) continue;
-
-                        foreach (IRow row in sheet)
-                        {
-                            if (row == null) continue;
-
-                            foreach (ICell cell in row.Cells)
-                            {
-                                if (cell == null) continue;
-
-                                string cellValue = GetCellValueAsString(cell);
-                                if (cellValue != null && cellValue.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
+                using var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                return SearchInStream(stream, searchString, true);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Error reading Excel file {fileName}: {ex.Message}");
                 return false;
-            }
-
-            return false;
-        }
-
-        public string GetCellValueAsString(ICell cell)
-        {
-            switch (cell.CellType)
-            {
-                case CellType.String:
-                    return cell.StringCellValue;
-                case CellType.Numeric:
-                    if (DateUtil.IsCellDateFormatted(cell))
-                        return cell.DateCellValue?.ToString() ?? string.Empty;
-                    else
-                        return cell.NumericCellValue.ToString();
-                case CellType.Boolean:
-                    return cell.BooleanCellValue.ToString();
-                case CellType.Formula:
-                    return cell?.ToString() ?? string.Empty;
-                case CellType.Blank:
-                    return string.Empty;
-                default:
-                    return cell?.ToString() ?? string.Empty;
             }
         }
     }

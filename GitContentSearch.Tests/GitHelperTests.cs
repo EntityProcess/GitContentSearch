@@ -3,11 +3,24 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using Xunit;
+using LibGit2Sharp;
 
 namespace GitContentSearch.Tests
 {
-	public class GitHelperTests
+	public class GitHelperTests : IDisposable
 	{
+		private readonly TestRepositoryHelper _repoHelper;
+
+		public GitHelperTests()
+		{
+			_repoHelper = new TestRepositoryHelper();
+		}
+
+		public void Dispose()
+		{
+			_repoHelper.Dispose();
+		}
+
 		[Fact]
 		public void GetGitCommits_ShouldReturnEmptyList_OnGitFailure()
 		{
@@ -32,15 +45,11 @@ namespace GitContentSearch.Tests
 		{
 			// Arrange
 			var processWrapperMock = new Mock<IProcessWrapper>();
-
-			var processResult = new ProcessResult(string.Empty, "fatal: bad object invalidCommit", 1);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), null, null)).Returns(processResult);
-
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
 			// Act & Assert
-			var exception = Assert.Throws<Exception>(() => gitHelper.GetCommitTime("invalidCommit"));
-			Assert.Equal("Error getting commit time: fatal: bad object invalidCommit", exception.Message);
+			var exception = Assert.Throws<ArgumentException>(() => gitHelper.GetCommitTime("invalidCommit"));
+			Assert.Equal("Invalid commit hash: invalidCommit", exception.Message);
 		}
 
 		[Fact]
@@ -48,17 +57,16 @@ namespace GitContentSearch.Tests
 		{
 			// Arrange
 			var processWrapperMock = new Mock<IProcessWrapper>();
-
-			var processResult = new ProcessResult("2023-08-21 12:34:56 +0000", string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), null, null)).Returns(processResult);
-
-			var gitHelper = new GitHelper(processWrapperMock.Object);
+			_repoHelper.CreateAndCommitFile("test.txt", "test content", "test commit");
+			var commitHash = _repoHelper.GetLastCommitHash();
+			var gitHelper = new GitHelper(processWrapperMock.Object, _repoHelper.RepositoryPath);
 
 			// Act
-			var result = gitHelper.GetCommitTime("validCommitHash");
+			var result = gitHelper.GetCommitTime(commitHash);
 
 			// Assert
-			Assert.Equal("2023-08-21 12:34:56 +0000", result);
+			// Since the commit time is generated at runtime, we just verify the format
+			Assert.Matches(@"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}", result);
 		}
 
 		[Fact]
@@ -231,6 +239,54 @@ namespace GitContentSearch.Tests
 			{
 				Assert.Equal(expectedCommits[i].CommitHash, actualCommits[i].CommitHash);
 			}
+		}
+
+		[Theory]
+		[InlineData("/path/to/file.txt", "log --pretty=format:%H -- \"path/to/file.txt\"")]
+		[InlineData("path/to/file.txt", "log --pretty=format:%H -- \"path/to/file.txt\"")]
+		[InlineData("file with spaces.txt", "log --pretty=format:%H -- \"file with spaces.txt\"")]
+		public void GetCommits_ShouldFormatFilePath_Correctly(string inputPath, string expectedCommand)
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitHelper = new GitHelper(processWrapperMock.Object);
+
+			// Setup mock to capture the actual command
+			string? capturedCommand = null;
+			processWrapperMock
+				.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()))
+				.Callback<string, string?, Stream?>((cmd, dir, stream) => capturedCommand = cmd)
+				.Returns(new ProcessResult(string.Empty, string.Empty, 0));
+
+			// Act
+			gitHelper.GetGitCommits(string.Empty, string.Empty, inputPath);
+
+			// Assert
+			Assert.Equal(expectedCommand.Trim(), capturedCommand?.Trim());
+		}
+
+		[Theory]
+		[InlineData("/path/to/file.txt", "log --name-status --pretty=format:%H --follow -- \"path/to/file.txt\"")]
+		[InlineData("path/to/file.txt", "log --name-status --pretty=format:%H --follow -- \"path/to/file.txt\"")]
+		[InlineData("file with spaces.txt", "log --name-status --pretty=format:%H --follow -- \"file with spaces.txt\"")]
+		public void GetCommitsWithFollow_ShouldFormatFilePath_Correctly(string inputPath, string expectedCommand)
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitHelper = new GitHelper(processWrapperMock.Object, null, true);  // true for follow flag
+
+			// Setup mock to capture the actual command
+			string? capturedCommand = null;
+			processWrapperMock
+				.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()))
+				.Callback<string, string?, Stream?>((cmd, dir, stream) => capturedCommand = cmd)
+				.Returns(new ProcessResult(string.Empty, string.Empty, 0));
+
+			// Act
+			gitHelper.GetGitCommits(string.Empty, string.Empty, inputPath);
+
+			// Assert
+			Assert.Equal(expectedCommand.Trim(), capturedCommand?.Trim());
 		}
 	}
 }

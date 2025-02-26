@@ -1,14 +1,14 @@
-﻿using System.Diagnostics;
-using System.IO;
+﻿using LibGit2Sharp;
 
 namespace GitContentSearch
 {
-	public class GitHelper : IGitHelper
+	public class GitHelper : IGitHelper, IDisposable
 	{
 		private readonly IProcessWrapper _processWrapper;
 		private readonly string? _workingDirectory;
 		private readonly bool _follow;
 		private readonly TextWriter _logWriter;
+		private Repository? _repository;
 
 		public GitHelper(IProcessWrapper processWrapper)
 			: this(processWrapper, null, false, Console.Out)
@@ -31,34 +31,36 @@ namespace GitContentSearch
 			_workingDirectory = workingDirectory;
 			_follow = follow;
 			_logWriter = logWriter;
+			InitializeRepository();
+		}
+
+		private void InitializeRepository()
+		{
+			try
+			{
+				string repoPath = Repository.Discover(_workingDirectory ?? Directory.GetCurrentDirectory());
+				if (repoPath != null)
+				{
+					_repository = new Repository(repoPath);
+				}
+			}
+			catch (Exception ex)
+			{
+				_logWriter.WriteLine($"Failed to initialize LibGit2Sharp repository: {ex.Message}");
+			}
 		}
 
 		public string GetCommitTime(string commitHash)
 		{
-			var result = RunGitCommand($"show -s --format=%ci {commitHash}");
+			EnsureRepositoryInitialized();
 
-			if (result.ExitCode != 0)
+			var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
+			if (commit == null)
 			{
-				throw new Exception($"Error getting commit time: {result.StandardError}");
+				throw new ArgumentException($"Invalid commit hash: {commitHash}");
 			}
 
-			return result.StandardOutput;
-		}
-
-		public void RunGitShow(string commit, string filePath, string outputFile)
-		{
-			string quotedFilePath = FormatFilePathForGit(filePath);
-
-			ProcessResult result;
-			using (var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write))
-			{
-				result = _processWrapper.Start($"show {commit}:{quotedFilePath}", _workingDirectory, outputStream);
-			}
-
-			if (result.ExitCode != 0)
-			{
-				throw new Exception($"Error running git show: {result.StandardError}");
-			}
+			return commit.Author.When.ToString("yyyy-MM-dd HH:mm:ss zzz");
 		}
 
 		public List<Commit> GetGitCommits(string earliest, string latest)
@@ -128,6 +130,7 @@ namespace GitContentSearch
 							 .ToArray();
 
 			var commits = new List<Commit>();
+			var processedCommits = new HashSet<string>(); // Track processed commits to avoid duplicates
 			string? currentCommitHash = null;
 			string? currentFilePath = null;
 			string? previousFilePath = filePath;
@@ -137,6 +140,12 @@ namespace GitContentSearch
 				if (line.Length == 40 && line.All(c => char.IsLetterOrDigit(c)))
 				{
 					currentCommitHash = line;
+					// Skip if we've already processed this commit
+					if (processedCommits.Contains(currentCommitHash))
+					{
+						currentCommitHash = null;
+						continue;
+					}
 				}
 				else if (line.StartsWith("R") && currentCommitHash != null)
 				{
@@ -154,6 +163,7 @@ namespace GitContentSearch
 						}
 						previousFilePath = currentFilePath;
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
+						processedCommits.Add(currentCommitHash);
 					}
 				}
 				else if (currentCommitHash != null)
@@ -170,6 +180,7 @@ namespace GitContentSearch
 							previousFilePath = currentFilePath;
 						}
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
+						processedCommits.Add(currentCommitHash);
 					}
 				}
 			}
@@ -192,7 +203,7 @@ namespace GitContentSearch
 			int startIndex = 0;
 			int endIndex = commits.Count - 1;
 
-			// Find the index of the latest commit (should be closer to start of the list)
+			// Find the index of the latest commit (should be closer to start of the list since git log returns newest first)
 			if (!string.IsNullOrEmpty(latest))
 			{
 				startIndex = commits.FindIndex(c => c.CommitHash == latest);
@@ -203,7 +214,7 @@ namespace GitContentSearch
 				}
 			}
 
-			// Find the index of the earliest commit (should be closer to the end of the list)
+			// Find the index of the earliest commit (should be closer to end of the list since git log returns newest first)
 			if (!string.IsNullOrEmpty(earliest))
 			{
 				endIndex = commits.FindIndex(c => c.CommitHash == earliest);
@@ -214,14 +225,137 @@ namespace GitContentSearch
 				}
 			}
 
-			// If the latest commit appears after the earliest commit in the list, the range is invalid
+			// Since git log returns commits in reverse chronological order (newest first),
+			// the latest commit should have a lower index than the earliest commit
 			if (startIndex > endIndex)
 			{
-				_logWriter.WriteLine("Invalid commit range specified: latest commit is earlier than the earliest commit.");
+				_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
 				return new List<Commit>();
 			}
 
+			// Return the commits in the range, inclusive of both start and end
 			return commits.Skip(startIndex).Take(endIndex - startIndex + 1).ToList();
+		}
+
+		#region LibGit2Sharp Implementation
+
+		public string GetRepositoryPath()
+		{
+			EnsureRepositoryInitialized();
+			return _repository!.Info.WorkingDirectory;
+		}
+
+		public bool IsValidRepository()
+		{
+			return _repository != null;
+		}
+
+		public bool IsValidCommit(string commitHash)
+		{
+			if (!IsValidRepository()) return false;
+			
+			try
+			{
+				var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
+				return commit != null;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		public Stream GetFileContentAtCommit(string commitHash, string filePath)
+		{
+			EnsureRepositoryInitialized();
+			
+			var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
+			if (commit == null)
+			{
+				throw new ArgumentException($"Invalid commit hash: {commitHash}");
+			}
+
+			var tree = commit.Tree;
+			var treeEntry = tree[filePath];
+			if (treeEntry == null)
+			{
+				throw new FileNotFoundException($"File {filePath} not found in commit {commitHash}");
+			}
+
+			var blob = (Blob)treeEntry.Target;
+			return blob.GetContentStream();
+		}
+
+		public Dictionary<string, string> GetFileHistory(string filePath)
+		{
+			EnsureRepositoryInitialized();
+			
+			var history = new Dictionary<string, string>();
+			var filter = new CommitFilter
+			{
+				SortBy = CommitSortStrategies.Time,
+				IncludeReachableFrom = _repository!.Head
+			};
+
+			foreach (var commit in _repository.Commits.QueryBy(filter))
+			{
+				try
+				{
+					var tree = commit.Tree;
+					var entry = tree[filePath];
+					if (entry != null)
+					{
+						history[commit.Sha] = commit.MessageShort;
+					}
+				}
+				catch
+				{
+					// Skip if file doesn't exist in this commit
+					continue;
+				}
+			}
+
+			return history;
+		}
+
+		public List<string> GetBranches()
+		{
+			EnsureRepositoryInitialized();
+			return _repository!.Branches.Select(b => b.FriendlyName).ToList();
+		}
+
+		public List<(string Hash, string Message, DateTimeOffset When)> GetCommitLog(int maxCount = 100)
+		{
+			EnsureRepositoryInitialized();
+			
+			return _repository!.Commits
+				.Take(maxCount)
+				.Select(c => (c.Sha, c.MessageShort, c.Author.When))
+				.ToList();
+		}
+
+		private void EnsureRepositoryInitialized()
+		{
+			if (_repository == null)
+			{
+				throw new InvalidOperationException("Git repository is not initialized or is invalid.");
+			}
+		}
+
+		#endregion
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				_repository?.Dispose();
+			}
+		}
+
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
 		}
 	}
 }
