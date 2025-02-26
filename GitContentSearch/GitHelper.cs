@@ -237,8 +237,6 @@ namespace GitContentSearch
 			return commits.Skip(startIndex).Take(endIndex - startIndex + 1).ToList();
 		}
 
-		#region LibGit2Sharp Implementation
-
 		public string GetRepositoryPath()
 		{
 			EnsureRepositoryInitialized();
@@ -341,8 +339,6 @@ namespace GitContentSearch
 				throw new InvalidOperationException("Git repository is not initialized or is invalid.");
 			}
 		}
-
-		#endregion
 
 		protected virtual void Dispose(bool disposing)
 		{

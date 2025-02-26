@@ -302,6 +302,72 @@ public partial class MainWindowViewModel : ObservableObject
         !string.IsNullOrEmpty(WorkingDirectory) &&
         !IsSearching;
 
+    private bool CanLocateFile =>
+        !string.IsNullOrEmpty(FilePath) &&
+        !string.IsNullOrEmpty(WorkingDirectory) &&
+        !IsSearching;
+
+    [RelayCommand(CanExecute = nameof(CanLocateFile))]
+    private async Task LocateFileAsync()
+    {
+        IsSearching = true;
+        ShowProgress = true;
+        SearchProgress = 0;
+        LogOutput.Clear();
+        try
+        {
+            if (!Directory.Exists(WorkingDirectory))
+            {
+                LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
+                ShowProgress = false;
+                return;
+            }
+
+            var processWrapper = new ProcessWrapper();
+            string logAndTempFileDirectory = LogDirectory;
+            if (string.IsNullOrEmpty(logAndTempFileDirectory))
+            {
+                logAndTempFileDirectory = Path.Combine(Path.GetTempPath(), "GitContentSearch");
+                Directory.CreateDirectory(logAndTempFileDirectory);
+            }
+
+            var uiTextWriter = new UiTextWriter(LogOutput);
+            var logFile = Path.Combine(logAndTempFileDirectory, "search_log.txt");
+            var fileWriter = new StreamWriter(logFile, append: true);
+            var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
+
+            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, writer);
+            var gitLocator = new GitLocator(_gitHelper, writer);
+
+            writer.WriteLine(new string('=', 50));
+            writer.WriteLine($"GitContentSearch locate started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            writer.WriteLine($"Working Directory (Git Repo): {WorkingDirectory}");
+            writer.WriteLine($"File to locate: {FilePath}");
+            writer.WriteLine(new string('=', 50));
+
+            await Task.Run(() => 
+            {
+                SearchProgress = 50; // Show some progress
+                var result = gitLocator.LocateFile(FilePath);
+                SearchProgress = 100;
+                return result;
+            });
+        }
+        catch (Exception ex)
+        {
+            LogOutput.Add($"Error: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
+            }
+        }
+        finally
+        {
+            IsSearching = false;
+            ShowProgress = false;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanStartSearch))]
     private async Task StartSearchAsync()
     {

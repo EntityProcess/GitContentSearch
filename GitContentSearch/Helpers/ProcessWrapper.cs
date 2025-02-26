@@ -1,5 +1,6 @@
 ﻿using GitContentSearch;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 public class ProcessWrapper : IProcessWrapper
 {
@@ -15,7 +16,6 @@ public class ProcessWrapper : IProcessWrapper
 
 	public ProcessResult Start(string arguments, string? workingDirectory, Stream? outputStream)
 	{
-
 		var startInfo = new ProcessStartInfo
 		{
 			FileName = "git",
@@ -29,6 +29,50 @@ public class ProcessWrapper : IProcessWrapper
 
 		return StartInternal(startInfo, outputStream);
 	}
+
+    public void StartAndProcessOutput(string arguments, string? workingDirectory, Action<string> lineProcessor)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "git",
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = workingDirectory
+        };
+
+        using var process = Process.Start(startInfo);
+        if (process == null)
+        {
+            throw new Exception("Failed to start process.");
+        }
+
+        try
+        {
+            // Process output line by line
+            string? line;
+            while (!process.HasExited && (line = process.StandardOutput.ReadLine()) != null)
+            {
+                lineProcessor(line);
+            }
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                try
+                {
+                    process.Kill();
+                }
+                catch
+                {
+                    // Best effort to kill the process
+                }
+            }
+        }
+    }
 
 	private ProcessResult StartInternal(ProcessStartInfo startInfo, Stream? outputStream)
     {

@@ -79,13 +79,20 @@
         <Grid Grid.Row="6" Margin="0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="140"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0" 
                     Classes="Primary"
                     Content="Start Search" 
                     Command="{Binding StartSearchCommand}"/>
-            <ProgressBar Grid.Column="1" 
+            <Button Grid.Column="1" 
+                    Classes="Secondary"
+                    Content="Locate" 
+                    Command="{Binding LocateFileCommand}"
+                    Margin="8,0"
+                    IsEnabled="{Binding !IsSearching}"/>
+            <ProgressBar Grid.Column="2" 
                         Height="4"
                         Maximum="100"
                         Value="{Binding SearchProgress}" 

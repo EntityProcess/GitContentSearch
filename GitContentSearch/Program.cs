@@ -7,9 +7,37 @@ namespace GitContentSearch
 	{
 		static void Main(string[] args)
 		{
+			if (args.Length == 0)
+			{
+				Console.WriteLine("Usage:");
+				Console.WriteLine("  Search: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
+				Console.WriteLine("  Locate: <program> --locate-only <file-name>");
+				return;
+			}
+
+			// Handle locate-only mode
+			if (args[0] == "--locate-only")
+			{
+				if (args.Length != 2)
+				{
+					Console.WriteLine("Usage for locate: <program> --locate-only <file-name>");
+					return;
+				}
+
+				string fileName = args[1];
+				string? locateWorkingDirectory = null;
+
+				var processWrapper = new ProcessWrapper();
+				var gitHelper = new GitHelper(processWrapper, locateWorkingDirectory, false);
+				var gitLocator = new GitLocator(gitHelper);
+				gitLocator.LocateFile(fileName);
+				return;
+			}
+
+			// Original search functionality
 			if (args.Length < 2)
 			{
-				Console.WriteLine("Usage: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
+				Console.WriteLine("Usage for search: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
 				return;
 			}
 
