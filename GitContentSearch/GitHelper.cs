@@ -1,4 +1,7 @@
 ﻿using LibGit2Sharp;
+using GitContentSearch.Interfaces;
+using System.IO;
+using System;
 
 namespace GitContentSearch
 {
@@ -7,30 +10,30 @@ namespace GitContentSearch
 		private readonly IProcessWrapper _processWrapper;
 		private readonly string? _workingDirectory;
 		private readonly bool _follow;
-		private readonly TextWriter _logWriter;
+		private readonly ISearchLogger _logger;
 		private Repository? _repository;
 
 		public GitHelper(IProcessWrapper processWrapper)
-			: this(processWrapper, null, false, Console.Out)
+			: this(processWrapper, null, false, null)
 		{
 		}
 
 		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory) 
-			: this(processWrapper, workingDirectory, false, Console.Out)
+			: this(processWrapper, workingDirectory, false, null)
 		{
 		}
 
 		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow)
-			: this(processWrapper, workingDirectory, follow, Console.Out)
+			: this(processWrapper, workingDirectory, follow, null)
 		{
 		}
 
-		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow, TextWriter logWriter)
+		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow, ISearchLogger logger)
 		{
 			_processWrapper = processWrapper;
 			_workingDirectory = workingDirectory;
 			_follow = follow;
-			_logWriter = logWriter;
+			_logger = logger;
 			InitializeRepository();
 		}
 
@@ -46,7 +49,7 @@ namespace GitContentSearch
 			}
 			catch (Exception ex)
 			{
-				_logWriter.WriteLine($"Failed to initialize LibGit2Sharp repository: {ex.Message}");
+				_logger?.WriteLine($"Failed to initialize LibGit2Sharp repository: {ex.Message}");
 			}
 		}
 
@@ -63,12 +66,7 @@ namespace GitContentSearch
 			return commit.Author.When.ToString("yyyy-MM-dd HH:mm:ss zzz");
 		}
 
-		public List<Commit> GetGitCommits(string earliest, string latest)
-		{
-			return GetGitCommits(earliest, latest, string.Empty);
-		}
-
-		public List<Commit> GetGitCommits(string earliest, string latest, string filePath)
+		public List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath = "")
 		{
 			var mostRecentCommitHash = GetMostRecentCommitHash();
 			var filteredCommits = _follow 
@@ -82,7 +80,7 @@ namespace GitContentSearch
 					.ToList();
 			}
 
-			return FilterCommitsByRange(filteredCommits, earliest, latest);
+			return FilterCommitsByRange(filteredCommits, earliestCommit, latestCommit);
 		}
 
 		private string? GetMostRecentCommitHash()
@@ -90,7 +88,7 @@ namespace GitContentSearch
 			var result = RunGitCommand("log --pretty=format:%H -n 1");
 			if (result == null || result.ExitCode != 0)
 			{
-				_logWriter.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return null;
 			}
 
@@ -104,7 +102,7 @@ namespace GitContentSearch
 			var result = RunGitCommand(arguments);
 			if (result == null || result.ExitCode != 0)
 			{
-				_logWriter.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return new List<Commit>();
 			}
 
@@ -121,7 +119,7 @@ namespace GitContentSearch
 			var result = RunGitCommand(arguments);
 			if (result.ExitCode != 0)
 			{
-				_logWriter.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return new List<Commit>();
 			}
 
@@ -157,9 +155,9 @@ namespace GitContentSearch
 						if (oldPath != currentFilePath)
 						{
 							var commitTime = GetCommitTime(currentCommitHash);
-							_logWriter.WriteLine($"File renamed in commit {currentCommitHash} at {commitTime.Trim()}:");
-							_logWriter.WriteLine($"  From: {oldPath}");
-							_logWriter.WriteLine($"  To:   {currentFilePath}");
+							_logger?.WriteLine($"File renamed in commit {currentCommitHash} at {commitTime.Trim()}:");
+							_logger?.WriteLine($"  From: {oldPath}");
+							_logger?.WriteLine($"  To:   {currentFilePath}");
 						}
 						previousFilePath = currentFilePath;
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
@@ -175,8 +173,8 @@ namespace GitContentSearch
 						if (previousFilePath != currentFilePath)
 						{
 							var commitTime = GetCommitTime(currentCommitHash);
-							_logWriter.WriteLine($"File path changed in commit {currentCommitHash} at {commitTime.Trim()}:");
-							_logWriter.WriteLine($"  New path: {currentFilePath}");
+							_logger?.WriteLine($"File path changed in commit {currentCommitHash} at {commitTime.Trim()}:");
+							_logger?.WriteLine($"  New path: {currentFilePath}");
 							previousFilePath = currentFilePath;
 						}
 						commits.Add(new Commit(currentCommitHash, currentFilePath));
@@ -209,7 +207,7 @@ namespace GitContentSearch
 				startIndex = commits.FindIndex(c => c.CommitHash == latest);
 				if (startIndex == -1)
 				{
-					_logWriter.WriteLine($"Latest commit {latest} not found.");
+					_logger?.WriteLine($"Latest commit {latest} not found.");
 					return new List<Commit>();
 				}
 			}
@@ -220,7 +218,7 @@ namespace GitContentSearch
 				endIndex = commits.FindIndex(c => c.CommitHash == earliest);
 				if (endIndex == -1)
 				{
-					_logWriter.WriteLine($"Earliest commit {earliest} not found.");
+					_logger?.WriteLine($"Earliest commit {earliest} not found.");
 					return new List<Commit>();
 				}
 			}
@@ -229,7 +227,7 @@ namespace GitContentSearch
 			// the latest commit should have a lower index than the earliest commit
 			if (startIndex > endIndex)
 			{
-				_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
+				_logger?.WriteLine("Error: The earliest commit is more recent than the latest commit.");
 				return new List<Commit>();
 			}
 
@@ -314,12 +312,6 @@ namespace GitContentSearch
 			}
 
 			return history;
-		}
-
-		public List<string> GetBranches()
-		{
-			EnsureRepositoryInitialized();
-			return _repository!.Branches.Select(b => b.FriendlyName).ToList();
 		}
 
 		public List<(string Hash, string Message, DateTimeOffset When)> GetCommitLog(int maxCount = 100)

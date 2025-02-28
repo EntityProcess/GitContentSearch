@@ -1,4 +1,6 @@
 ﻿using GitContentSearch.Helpers;
+using GitContentSearch.Interfaces;
+using System.IO;
 
 namespace GitContentSearch
 {
@@ -7,21 +9,16 @@ namespace GitContentSearch
 		private readonly IGitHelper _gitHelper;
 		private readonly IFileSearcher _fileSearcher;
 		private readonly IFileManager _fileManager;
-		private readonly TextWriter _logWriter;
-		private readonly bool _disableLinearSearch;
+		private readonly ISearchLogger _logger;
 		private IProgress<double>? _progress;
 		private double _currentProgress = 0;
 
-		public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager, bool disableLinearSearch, TextWriter? logWriter = null)
+		public GitContentSearcher(IGitHelper gitHelper, IFileSearcher fileSearcher, IFileManager fileManager, ISearchLogger logger)
 		{
-			_logWriter = logWriter ?? new CompositeTextWriter(
-				Console.Out,
-				new StreamWriter("search_log.txt", append: true)
-			);
 			_gitHelper = gitHelper;
 			_fileSearcher = fileSearcher;
 			_fileManager = fileManager;
-			_disableLinearSearch = disableLinearSearch;
+			_logger = logger;
 		}
 
 		private bool FileExistsInCurrentCommit(string filePath)
@@ -30,7 +27,7 @@ namespace GitContentSearch
 			{
 				if (!_gitHelper.IsValidRepository())
 				{
-					_logWriter.WriteLine("Warning: Not a valid git repository.");
+					_logger.WriteLine("Warning: Not a valid git repository.");
 					return false;
 				}
 
@@ -52,30 +49,30 @@ namespace GitContentSearch
 
 			if (!_gitHelper.IsValidRepository())
 			{
-				_logWriter.WriteLine("Error: Not a valid git repository.");
+				_logger.WriteLine("Error: Not a valid git repository.");
 				_progress?.Report(1.0);
 				return;
 			}
 
 			if (!string.IsNullOrEmpty(earliestCommit) && !_gitHelper.IsValidCommit(earliestCommit))
 			{
-				_logWriter.WriteLine($"Error: Invalid earliest commit hash: {earliestCommit}");
+				_logger.WriteLine($"Error: Invalid earliest commit hash: {earliestCommit}");
 				_progress?.Report(1.0);
 				return;
 			}
 
 			if (!string.IsNullOrEmpty(latestCommit) && !_gitHelper.IsValidCommit(latestCommit))
 			{
-				_logWriter.WriteLine($"Error: Invalid latest commit hash: {latestCommit}");
+				_logger.WriteLine($"Error: Invalid latest commit hash: {latestCommit}");
 				_progress?.Report(1.0);
 				return;
 			}
 
 			if (!FileExistsInCurrentCommit(filePath))
 			{
-				_logWriter.WriteLine($"Warning: The file '{filePath}' does not exist in the current commit.");
-				_logWriter.WriteLine("The search will not include commits where the file path was not found.");
-				_logWriter.WriteLine();
+				_logger.WriteLine($"Warning: The file '{filePath}' does not exist in the current commit.");
+				_logger.WriteLine("The search will not include commits where the file path was not found.");
+				_logger.WriteLine(""); // Empty line
 			}
 
 			if (!string.IsNullOrEmpty(earliestCommit) && !string.IsNullOrEmpty(latestCommit))
@@ -89,7 +86,7 @@ namespace GitContentSearch
 				// it means it's more recent than the latest commit
 				if (earliestIndex != -1 && latestIndex != -1 && earliestIndex < latestIndex)
 				{
-					_logWriter.WriteLine("Error: The earliest commit is more recent than the latest commit.");
+					_logger.WriteLine("Error: The earliest commit is more recent than the latest commit.");
 					_progress?.Report(1.0);
 					return;
 				}
@@ -99,13 +96,13 @@ namespace GitContentSearch
 			var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit, filePath);
 			commits.Reverse();
 
-			if (commits == null || commits.Count == 0)
+			if (commits == null || commits.Count() == 0)
 			{
 				// If commits list is empty due to invalid order, the error message has already been logged by GitHelper
 				// Otherwise, log that no commits were found
 				if (string.IsNullOrEmpty(earliestCommit) || string.IsNullOrEmpty(latestCommit))
 				{
-					_logWriter.WriteLine("No commits found containing the specified file.");
+					_logger.WriteLine("No commits found containing the specified file.");
 				}
 				_progress?.Report(1.0);
 				return;
@@ -119,14 +116,14 @@ namespace GitContentSearch
 				
 				if (earliestIndex == -1)
 				{
-					_logWriter.WriteLine($"Error: Earliest commit {earliestCommit} not found.");
+					_logger.WriteLine($"Error: Earliest commit {earliestCommit} not found.");
 					_progress?.Report(1.0);
 					return;
 				}
 				
 				if (latestIndex == -1)
 				{
-					_logWriter.WriteLine($"Error: Latest commit {latestCommit} not found.");
+					_logger.WriteLine($"Error: Latest commit {latestCommit} not found.");
 					_progress?.Report(1.0);
 					return;
 				}
@@ -168,12 +165,12 @@ namespace GitContentSearch
 					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
 
 					string commitTime = _gitHelper.GetCommitTime(commit.CommitHash);
-					_logWriter.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
-					_logWriter.Flush();
+					_logger.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
+					_logger.Flush();
 				}
 				catch (Exception ex)
 				{
-					_logWriter.WriteLine($"Error retrieving file at commit {commit.CommitHash}: {ex.Message}");
+					_logger.WriteLine($"Error retrieving file at commit {commit.CommitHash}: {ex.Message}");
 				}
 
 				totalSearchesDone++;
@@ -214,12 +211,12 @@ namespace GitContentSearch
 					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
 
 					string commitTime = _gitHelper.GetCommitTime(commit.CommitHash);
-					_logWriter.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
-					_logWriter.Flush();
+					_logger.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
+					_logger.Flush();
 				}
 				catch (Exception ex)
 				{
-					_logWriter.WriteLine($"Error retrieving file at commit {commit.CommitHash}: {ex.Message}");
+					_logger.WriteLine($"Error retrieving file at commit {commit.CommitHash}: {ex.Message}");
 				}
 
 				totalSearchesDone++;
@@ -234,15 +231,12 @@ namespace GitContentSearch
 				}
 				else
 				{
-					// If not found and linear search is enabled, check remaining commits with linear search
-					if (!_disableLinearSearch)
+					// If not found, check remaining commits with linear search
+					int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, ref totalSearchesDone, totalPossibleSearches, reverse: true);
+					if (linearSearchResult.HasValue)
 					{
-						int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, ref totalSearchesDone, totalPossibleSearches, reverse: true);
-						if (linearSearchResult.HasValue)
-						{
-							lastMatchIndex = linearSearchResult;
-							break;
-						}
+						lastMatchIndex = linearSearchResult;
+						break;
 					}
 
 					right = mid - 1; // Continue searching to the left
@@ -270,12 +264,12 @@ namespace GitContentSearch
 					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
 
 					string commitTime = _gitHelper.GetCommitTime(commit.CommitHash);
-					_logWriter.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
-					_logWriter.Flush();
+					_logger.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
+					_logger.Flush();
 				}
 				catch (Exception ex)
 				{
-					_logWriter.WriteLine($"Error retrieving file at commit {commit.CommitHash}: {ex.Message}");
+					_logger.WriteLine($"Error retrieving file at commit {commit.CommitHash}: {ex.Message}");
 				}
 
 				totalSearchesDone++;
@@ -296,22 +290,22 @@ namespace GitContentSearch
 		{
 			if (firstMatchIndex == -1)
 			{
-				_logWriter.WriteLine($"Search string \"{searchString}\" does not appear in any of the checked commits.");
+				_logger.WriteLine($"Search string \"{searchString}\" does not appear in any of the checked commits.");
 			}
 			else
 			{
-				_logWriter.WriteLine($"Search string \"{searchString}\" first appears in commit {commits[firstMatchIndex].CommitHash}.");
+				_logger.WriteLine($"Search string \"{searchString}\" first appears in commit {commits[firstMatchIndex].CommitHash}.");
 				if (lastMatchIndex != -1)
 				{
-					_logWriter.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex].CommitHash}.");
+					_logger.WriteLine($"Search string \"{searchString}\" last appears in commit {commits[lastMatchIndex].CommitHash}.");
 					if (lastMatchIndex < commits.Count - 1)
 					{
-						_logWriter.WriteLine($"Search string \"{searchString}\" disappeared in commit {commits[lastMatchIndex + 1].CommitHash}.");
+						_logger.WriteLine($"Search string \"{searchString}\" disappeared in commit {commits[lastMatchIndex + 1].CommitHash}.");
 					}
 				}
 			}
 
-			_logWriter.Flush();
+			_logger.Flush();
 		}
 	}
 }

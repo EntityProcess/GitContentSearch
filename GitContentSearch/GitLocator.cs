@@ -1,72 +1,52 @@
+using GitContentSearch.Interfaces;
 using LibGit2Sharp;
 
 namespace GitContentSearch
 {
-    // Helper extension method to recursively traverse trees
-    public static class TreeExtensions
-    {
-        public static IEnumerable<TreeEntry> RecursiveSelect(
-            this Tree tree,
-            Func<TreeEntry, TreeEntry> selector,
-            Func<TreeEntry, Tree> recursion)
-        {
-            foreach (var item in tree)
-            {
-                if (item.TargetType == TreeEntryTargetType.Tree)
-                {
-                    var subtree = recursion(item);
-                    foreach (var child in RecursiveSelect(subtree, selector, recursion))
-                    {
-                        yield return selector(child);
-                    }
-                }
-                else
-                {
-                    yield return selector(item);
-                }
-            }
-        }
-    }
-
     public class GitLocator : IGitLocator
     {
         private readonly IGitHelper _gitHelper;
-        private readonly TextWriter _logWriter;
+        private readonly ISearchLogger _logger;
         private readonly IProcessWrapper _processWrapper;
+        private const int PROGRESS_UPDATE_INTERVAL = 1000; // Update progress every 1000 commits
 
-        public GitLocator(IGitHelper gitHelper, TextWriter? logWriter = null)
+        public GitLocator(IGitHelper gitHelper, ISearchLogger logger, IProcessWrapper processWrapper)
         {
             _gitHelper = gitHelper;
-            _logWriter = logWriter ?? Console.Out;
-            _processWrapper = new ProcessWrapper();
+            _logger = logger;
+            _processWrapper = processWrapper;
         }
 
-        public (string? CommitHash, string? FilePath) LocateFile(string fileName)
+        public (string? CommitHash, string? FilePath) LocateFile(string fileName, IProgress<double>? progress = null)
         {
             if (!_gitHelper.IsValidRepository())
             {
-                _logWriter.WriteLine("Error: Not a valid git repository.");
+                _logger.LogError("Not a valid git repository.");
+                progress?.Report(1.0); // Report completion even on error
                 return (null, null);
             }
 
             // Try command line approach as it's faster
-            var result = LocateFileUsingGitCommand(fileName);
+            var result = LocateFileUsingGitCommand(fileName, progress);
             if (result.CommitHash != null)
             {
+                progress?.Report(1.0); // Ensure we report completion
                 return result;
             }
 
-			_logWriter.WriteLine($"File {fileName} not found.");
-			return (null, null);
-		}
+            _logger.WriteLine($"\nFile {fileName} not found.");
+            progress?.Report(1.0); // Report completion when file not found
+            return (null, null);
+        }
 
-        private (string? CommitHash, string? FilePath) LocateFileUsingGitCommand(string fileName)
+        private (string? CommitHash, string? FilePath) LocateFileUsingGitCommand(string fileName, IProgress<double>? progress = null)
         {
             try
             {
                 string? currentCommit = null;
                 string? foundPath = null;
                 var foundException = new Exception("Found match");
+                int commitCount = 0;
 
                 // Process output line by line and stop as soon as we find a match
                 try
@@ -84,6 +64,13 @@ namespace GitContentSearch
                             if (line.Length == 40 && line.All(c => char.IsLetterOrDigit(c)))
                             {
                                 currentCommit = line;
+                                commitCount++;
+                                if (commitCount % PROGRESS_UPDATE_INTERVAL == 0)
+                                {
+                                    _logger.LogProgress($"Processing commits: {commitCount}");
+                                    // Report approximate progress (assuming most repos have less than 100k commits)
+                                    progress?.Report(Math.Min(0.95, commitCount / 100000.0));
+                                }
                             }
                             else if (currentCommit != null && line.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
                             {
@@ -101,16 +88,18 @@ namespace GitContentSearch
                 if (currentCommit != null && foundPath != null)
                 {
                     var commitTime = _gitHelper.GetCommitTime(currentCommit);
-                    _logWriter.WriteLine($"Found '{fileName}' in commit {currentCommit} ({commitTime})");
-                    _logWriter.WriteLine($"Full path: {foundPath}");
+                    _logger.WriteLine($"Found '{fileName}' in commit {currentCommit} ({commitTime})");
+                    _logger.WriteLine($"Full path: {foundPath}");
                     return (currentCommit, foundPath);
                 }
 
+                _logger.LogFooter();
+                _logger.WriteLine($"Processed {commitCount} commits without finding the file.");
                 return (null, null);
             }
             catch (Exception ex)
             {
-                _logWriter.WriteLine($"Warning: Command failed: {ex.Message}");
+                _logger.LogError("Command failed", ex);
                 return (null, null);
             }
         }

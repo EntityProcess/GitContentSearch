@@ -1,16 +1,16 @@
-﻿namespace GitContentSearch
+﻿using System;
+using System.IO;
+using System.Collections.Generic;
+
+namespace GitContentSearch.Interfaces
 {
-	public interface IGitHelper
+	public interface IGitHelper : IDisposable
 	{
-		string GetCommitTime(string commitHash);
-		List<Commit> GetGitCommits(string earliest, string latest);
-		List<Commit> GetGitCommits(string earliest, string latest, string filePath);
-		string GetRepositoryPath();
 		bool IsValidRepository();
+		string GetRepositoryPath();
+		string GetCommitTime(string commitHash);
 		bool IsValidCommit(string commitHash);
 		Stream GetFileContentAtCommit(string commitHash, string filePath);
-		Dictionary<string, string> GetFileHistory(string filePath);
-		List<string> GetBranches();
-		List<(string Hash, string Message, DateTimeOffset When)> GetCommitLog(int maxCount = 100);
+		List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath = "");
 	}
 }

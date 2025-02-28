@@ -44,7 +44,8 @@ namespace GitContentSearch.Tests
 			var fileManager = new FileManager();
 
 			using var stringWriter = new StringWriter();
-			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: false, logWriter: stringWriter);
+			var searchLogger = new SearchLogger(stringWriter);
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, searchLogger);
 
 			// Act
 			gitContentSearcher.SearchContent(_testFilePath, "search string");
@@ -70,7 +71,8 @@ namespace GitContentSearch.Tests
 			var fileManager = new FileManager();
 
 			using var stringWriter = new StringWriter();
-			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
+			var searchLogger = new SearchLogger(stringWriter);
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, searchLogger);
 
 			// Act
 			gitContentSearcher.SearchContent(_testFilePath, "search string");
@@ -104,7 +106,8 @@ namespace GitContentSearch.Tests
 			var fileManager = new FileManager();
 
 			using var stringWriter = new StringWriter();
-			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
+			var searchLogger = new SearchLogger(stringWriter);
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, searchLogger);
 
 			// Act
 			gitContentSearcher.SearchContent(_testFilePath, "search string");
@@ -139,7 +142,8 @@ namespace GitContentSearch.Tests
 			var fileManager = new FileManager();
 
 			using var stringWriter = new StringWriter();
-			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
+			var searchLogger = new SearchLogger(stringWriter);
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, searchLogger);
 
 			// Act - Pass commit2 as earliest (older) and commit3 as latest (newer)
 			gitContentSearcher.SearchContent(_testFilePath, "search string", commit2, commit3);
@@ -180,7 +184,8 @@ namespace GitContentSearch.Tests
 			var fileManager = new FileManager();
 
 			using var stringWriter = new StringWriter();
-			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: true, logWriter: stringWriter);
+			var searchLogger = new SearchLogger(stringWriter);
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, searchLogger);
 
 			// Act - Pass commit3 as earliest (more recent) and commit2 as latest (older)
 			gitContentSearcher.SearchContent(_testFilePath, "search string", commit3, commit2);
@@ -214,7 +219,8 @@ namespace GitContentSearch.Tests
 			var fileManager = new FileManager();
 
 			using var stringWriter = new StringWriter();
-			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, disableLinearSearch: false, logWriter: stringWriter);
+			var searchLogger = new SearchLogger(stringWriter);
+			var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, searchLogger);
 
 			// Act
 			gitContentSearcher.SearchContent(_testFilePath, "search string");

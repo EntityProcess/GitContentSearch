@@ -1,10 +1,28 @@
 ﻿using GitContentSearch.Helpers;
+using GitContentSearch.Interfaces;
 using System.IO;
 
 namespace GitContentSearch
 {
 	class Program
 	{
+		private static string SetupTempDirectory(string? logDirectory = null)
+		{
+			var tempDir = logDirectory ?? Path.Combine(Path.GetTempPath(), "GitContentSearch");
+			if (!Directory.Exists(tempDir))
+			{
+				Directory.CreateDirectory(tempDir);
+			}
+			return tempDir;
+		}
+
+		private static ISearchLogger CreateLogger(string tempDir)
+		{
+			var fileWriter = new StreamWriter(Path.Combine(tempDir, "search_log.txt"), append: true);
+			var compositeWriter = new CompositeTextWriter(Console.Out, fileWriter);
+			return new SearchLogger(compositeWriter);
+		}
+
 		static void Main(string[] args)
 		{
 			if (args.Length == 0)
@@ -25,12 +43,20 @@ namespace GitContentSearch
 				}
 
 				string fileName = args[1];
-				string? locateWorkingDirectory = null;
+				string locateWorkingDir = Directory.GetCurrentDirectory();
+				string locateTempDir = SetupTempDirectory();
 
-				var processWrapper = new ProcessWrapper();
-				var gitHelper = new GitHelper(processWrapper, locateWorkingDirectory, false);
-				var gitLocator = new GitLocator(gitHelper);
-				gitLocator.LocateFile(fileName);
+				using (var logger = CreateLogger(locateTempDir))
+				{
+					logger.LogHeader("locate", locateWorkingDir, fileName);
+
+					var processWrapper = new ProcessWrapper();
+					var gitHelper = new GitHelper(processWrapper, locateWorkingDir, false, logger);
+					var gitLocator = new GitLocator(gitHelper, logger, processWrapper);
+					gitLocator.LocateFile(fileName);
+
+					logger.LogFooter();
+				}
 				return;
 			}
 
@@ -74,43 +100,22 @@ namespace GitContentSearch
 				}
 			}
 
-			if (string.IsNullOrEmpty(workingDirectory))
-			{
-				workingDirectory = Directory.GetCurrentDirectory();
-			}
+			workingDirectory ??= Directory.GetCurrentDirectory();
+			string tempDir = SetupTempDirectory(logDirectory);
 
-			string logAndTempFileDirectory = logDirectory ?? string.Empty;
-			if (string.IsNullOrEmpty(logAndTempFileDirectory))
+			using (var logger = CreateLogger(tempDir))
 			{
-				string tempPath = Path.GetTempPath();
-				logAndTempFileDirectory = Path.Combine(tempPath, "GitContentSearch");
-
-				if (!Directory.Exists(logAndTempFileDirectory))
-				{
-					Directory.CreateDirectory(logAndTempFileDirectory);
-				}
-			}
-
-			using (var logWriter = new CompositeTextWriter(
-				Console.Out,
-				new StreamWriter(Path.Combine(logAndTempFileDirectory, "search_log.txt"), append: true)))
-			{
-				logWriter.WriteLine(new string('=', 50));
-				logWriter.WriteLine($"GitContentSearch started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-				logWriter.WriteLine($"Working Directory (Git Repo): {workingDirectory ?? "Not specified, using current directory"}");
-				logWriter.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
-				logWriter.WriteLine(new string('=', 50));
+				logger.LogHeader("search", workingDirectory, filePath);
 
 				var processWrapper = new ProcessWrapper();
-				var gitHelper = new GitHelper(processWrapper, workingDirectory, follow);
+				var gitHelper = new GitHelper(processWrapper, workingDirectory, follow, logger);
 				var fileSearcher = new FileSearcher();
-				var fileManager = new FileManager(logAndTempFileDirectory);
-				var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, false, logWriter);
+				var fileManager = new FileManager(tempDir);
+				var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logger);
 
 				gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
 
-				logWriter.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-				logWriter.WriteLine(new string('=', 50));
+				logger.LogFooter();
 			}
 		}
 	}

@@ -2,6 +2,7 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitContentSearch.Helpers;
+using GitContentSearch.Interfaces;
 using GitContentSearch.UI.Helpers;
 using GitContentSearch.UI.Models;
 using GitContentSearch.UI.Services;
@@ -30,7 +31,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
-    private string filePath = string.Empty;
+	[NotifyCanExecuteChangedFor(nameof(LocateFileCommand))]
+	private string filePath = string.Empty;
 
     [RelayCommand]
     private async Task HandleFilePathLostFocusAsync()
@@ -119,7 +121,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
-    private string workingDirectory = string.Empty;
+	[NotifyCanExecuteChangedFor(nameof(LocateFileCommand))]
+	private string workingDirectory = string.Empty;
 
     [ObservableProperty]
     private string logDirectory = string.Empty;
@@ -314,6 +317,7 @@ public partial class MainWindowViewModel : ObservableObject
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
+        StreamWriter? fileWriter = null;
         try
         {
             if (!Directory.Exists(WorkingDirectory))
@@ -333,11 +337,27 @@ public partial class MainWindowViewModel : ObservableObject
 
             var uiTextWriter = new UiTextWriter(LogOutput);
             var logFile = Path.Combine(logAndTempFileDirectory, "search_log.txt");
-            var fileWriter = new StreamWriter(logFile, append: true);
+            fileWriter = new StreamWriter(logFile, append: true);
             var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
+            var searchLogger = new SearchLogger(writer, progressMessage => 
+            {
+                // Ensure UI updates happen on the UI thread
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    // Replace the last line if it was a progress message
+                    if (LogOutput.Count > 0 && LogOutput[LogOutput.Count - 1].StartsWith("Processing commits:"))
+                    {
+                        LogOutput[LogOutput.Count - 1] = progressMessage;
+                    }
+                    else
+                    {
+                        LogOutput.Add(progressMessage);
+                    }
+                });
+            });
 
-            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, writer);
-            var gitLocator = new GitLocator(_gitHelper, writer);
+            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, searchLogger);
+            var gitLocator = new GitLocator(_gitHelper, searchLogger, processWrapper);
 
             writer.WriteLine(new string('=', 50));
             writer.WriteLine($"GitContentSearch locate started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
@@ -347,10 +367,16 @@ public partial class MainWindowViewModel : ObservableObject
 
             await Task.Run(() => 
             {
-                SearchProgress = 50; // Show some progress
-                var result = gitLocator.LocateFile(FilePath);
-                SearchProgress = 100;
-                return result;
+                var progress = new Progress<double>(value =>
+                {
+                    // Ensure UI updates happen on the UI thread
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        SearchProgress = value * 100;
+                    });
+                });
+
+                return gitLocator.LocateFile(FilePath, progress);
             });
         }
         catch (Exception ex)
@@ -363,6 +389,11 @@ public partial class MainWindowViewModel : ObservableObject
         }
         finally
         {
+            if (fileWriter != null)
+            {
+                fileWriter.Flush();
+                fileWriter.Dispose();
+            }
             IsSearching = false;
             ShowProgress = false;
         }
@@ -375,6 +406,7 @@ public partial class MainWindowViewModel : ObservableObject
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
+        StreamWriter? fileWriter = null;
         try
         {
             if (!Directory.Exists(WorkingDirectory))
@@ -394,10 +426,26 @@ public partial class MainWindowViewModel : ObservableObject
 
             var uiTextWriter = new UiTextWriter(LogOutput);
             var logFile = Path.Combine(logAndTempFileDirectory, "search_log.txt");
-            var fileWriter = new StreamWriter(logFile, append: true);
+            fileWriter = new StreamWriter(logFile, append: true);
             var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
+            var searchLogger = new SearchLogger(writer, progressMessage => 
+            {
+                // Ensure UI updates happen on the UI thread
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    // Replace the last line if it was a progress message
+                    if (LogOutput.Count > 0 && LogOutput[LogOutput.Count - 1].StartsWith("Processing commits:"))
+                    {
+                        LogOutput[LogOutput.Count - 1] = progressMessage;
+                    }
+                    else
+                    {
+                        LogOutput.Add(progressMessage);
+                    }
+                });
+            });
 
-            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, writer);
+            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, searchLogger);
             _fileSearcher = new FileSearcher();
             _fileManager = new FileManager(logAndTempFileDirectory);
             
@@ -407,7 +455,7 @@ public partial class MainWindowViewModel : ObservableObject
             writer.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
             writer.WriteLine(new string('=', 50));
 
-            var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, false, writer);
+            var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, searchLogger);
             
             var progress = new Progress<double>(value =>
             {
@@ -432,7 +480,6 @@ public partial class MainWindowViewModel : ObservableObject
             
             // Ensure we flush and dispose the writer
             writer.Flush();
-            fileWriter.Dispose();
         }
         catch (Exception ex)
         {
@@ -446,6 +493,11 @@ public partial class MainWindowViewModel : ObservableObject
         }
         finally
         {
+            if (fileWriter != null)
+            {
+                fileWriter.Flush();
+                fileWriter.Dispose();
+            }
             IsSearching = false;
         }
     }

@@ -4,7 +4,7 @@
 
 **GitContentSearch** is the ideal tool if you've ever wanted to do `git blame` on Excel files. This tool comes in two flavors - a command-line interface (CLI) and a graphical user interface (UI). It allows you to efficiently search for content across different Git commits in Excel files (.xls, .xlsx) and text files (.txt, .sql, .cs, etc.), making it a powerful solution for tracking changes even in non-text formats.
 
-The app identifies the commit where the search string appears, using an optimized binary search algorithm and reverse linear search for faster results in large commit histories. Progress is logged to a file, allowing you to resume the search if interrupted.
+The app identifies the commit where the search string appears, using an optimized binary search algorithm for faster results in large commit histories. Progress is logged to a file, allowing you to resume the search if interrupted.
 
 > **Note**: Currently, the application has been primarily tested on Windows and may not work properly on Linux/MacOS. Cross-platform support is planned for future releases.
 

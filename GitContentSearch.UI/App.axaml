@@ -57,6 +57,26 @@
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
         
+        <!-- Locate Button Style (for locate actions) -->
+        <Style Selector="Button.Locate">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#7E57C2"/>
+            <Setter Property="BorderBrush" Value="#7E57C2"/>
+        </Style>
+        
+        <Style Selector="Button.Locate:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1A7E57C2"/>
+            <Setter Property="Foreground" Value="#9575CD"/>
+            <Setter Property="BorderBrush" Value="#9575CD"/>
+        </Style>
+        
+        <Style Selector="Button.Locate:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2A7E57C2"/>
+            <Setter Property="Foreground" Value="#5E35B1"/>
+            <Setter Property="BorderBrush" Value="#5E35B1"/>
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+        
         <!-- Disabled States for Both Button Types -->
         <Style Selector="Button.Primary:disabled /template/ ContentPresenter">
             <Setter Property="Background" Value="#4D00A3D9"/>
@@ -67,6 +87,12 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#4D00A3D9"/>
             <Setter Property="BorderBrush" Value="#4D00A3D9"/>
+        </Style>
+        
+        <Style Selector="Button.Locate:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#4D7E57C2"/>
+            <Setter Property="BorderBrush" Value="#4D7E57C2"/>
         </Style>
         
         <!-- Template Binding for Both Button Types -->
