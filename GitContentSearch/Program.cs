@@ -48,7 +48,7 @@ namespace GitContentSearch
 
 				using (var logger = CreateLogger(locateTempDir))
 				{
-					logger.LogHeader("locate", locateWorkingDir, fileName);
+					logger.LogHeader("locate", locateWorkingDir, fileName, locateTempDir);
 
 					var processWrapper = new ProcessWrapper();
 					var gitHelper = new GitHelper(processWrapper, locateWorkingDir, false, logger);
@@ -105,7 +105,7 @@ namespace GitContentSearch
 
 			using (var logger = CreateLogger(tempDir))
 			{
-				logger.LogHeader("search", workingDirectory, filePath);
+				logger.LogHeader("search", workingDirectory, filePath, tempDir);
 
 				var processWrapper = new ProcessWrapper();
 				var gitHelper = new GitHelper(processWrapper, workingDirectory, follow, logger);
