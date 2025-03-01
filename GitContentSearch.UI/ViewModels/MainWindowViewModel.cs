@@ -369,7 +369,7 @@ public partial class MainWindowViewModel : ObservableObject
             writer.WriteLine($"File to locate: {FilePath}");
             writer.WriteLine(new string('=', 50));
 
-            await Task.Run(() => 
+            var (commitHash, foundPath) = await Task.Run(() => 
             {
                 var progress = new Progress<double>(value =>
                 {
@@ -382,6 +382,15 @@ public partial class MainWindowViewModel : ObservableObject
 
                 return gitLocator.LocateFile(FilePath, progress);
             });
+
+            // Update the FilePath with the found path if one was found
+            if (!string.IsNullOrEmpty(foundPath))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    FilePath = foundPath;
+                });
+            }
         }
         catch (Exception ex)
         {
