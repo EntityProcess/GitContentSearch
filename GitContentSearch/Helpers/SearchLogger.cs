@@ -10,6 +10,16 @@ namespace GitContentSearch.Helpers
         private readonly Action<string>? _progressCallback;
         private bool _disposedValue;
 
+        /// <summary>
+        /// Event that fires when a log message is added
+        /// </summary>
+        public event EventHandler<string>? LogAdded;
+
+        /// <summary>
+        /// Gets the underlying TextWriter
+        /// </summary>
+        public TextWriter Writer => _writer;
+
         public SearchLogger(TextWriter writer, Action<string>? progressCallback = null)
         {
             _writer = writer;
@@ -24,6 +34,13 @@ namespace GitContentSearch.Helpers
             _writer.WriteLine($"Working Directory (Git Repo): {workingDirectory}");
             _writer.WriteLine($"File to {operation.ToLower()}: {targetFile}");
             _writer.WriteLine(divider);
+            
+            // Trigger LogAdded event for each line
+            LogAdded?.Invoke(this, divider);
+            LogAdded?.Invoke(this, $"GitContentSearch {operation} started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            LogAdded?.Invoke(this, $"Working Directory (Git Repo): {workingDirectory}");
+            LogAdded?.Invoke(this, $"File to {operation.ToLower()}: {targetFile}");
+            LogAdded?.Invoke(this, divider);
         }
 
         public void LogProgress(string progressMessage)
@@ -36,6 +53,7 @@ namespace GitContentSearch.Helpers
             {
                 Console.Write($"\r{progressMessage}".PadRight(50));
             }
+            LogAdded?.Invoke(this, progressMessage);
         }
 
         public void LogFooter()
@@ -44,7 +62,9 @@ namespace GitContentSearch.Helpers
             {
                 Console.WriteLine(); // Clear progress line in CLI mode
             }
-            _writer.WriteLine(new string('=', 50));
+            var divider = new string('=', 50);
+            _writer.WriteLine(divider);
+            LogAdded?.Invoke(this, divider);
         }
 
         public void LogError(string message, Exception? ex = null)
@@ -54,11 +74,17 @@ namespace GitContentSearch.Helpers
             {
                 _writer.WriteLine($"Inner Error: {ex.InnerException.Message}");
             }
+            LogAdded?.Invoke(this, $"Error: {message}");
+            if (ex?.InnerException != null)
+            {
+                LogAdded?.Invoke(this, $"Inner Error: {ex.InnerException.Message}");
+            }
         }
 
         public void WriteLine(string message)
         {
             _writer.WriteLine(message);
+            LogAdded?.Invoke(this, message);
         }
 
         protected virtual void Dispose(bool disposing)

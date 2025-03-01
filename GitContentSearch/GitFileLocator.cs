@@ -1,4 +1,5 @@
 using GitContentSearch.Interfaces;
+using System.Threading;
 
 namespace GitContentSearch
 {
@@ -43,8 +44,9 @@ namespace GitContentSearch
         /// </summary>
         /// <param name="fileName">The name of the file to locate (case-insensitive)</param>
         /// <param name="progress">Optional progress reporter for UI updates</param>
+        /// <param name="cancellationToken">Optional cancellation token to cancel the operation</param>
         /// <returns>Tuple of (CommitHash, FilePath) where the file was last found, or (null, null) if not found</returns>
-        public (string? CommitHash, string? FilePath) LocateFile(string fileName, IProgress<double>? progress = null)
+        public (string? CommitHash, string? FilePath) LocateFile(string fileName, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
         {
             if (!_gitHelper.IsValidRepository())
             {
@@ -54,7 +56,7 @@ namespace GitContentSearch
             }
 
             // Try command line approach as it's faster
-            var result = LocateFileUsingGitCommand(fileName, progress);
+            var result = LocateFileUsingGitCommand(fileName, progress, cancellationToken);
             if (result.CommitHash != null)
             {
                 progress?.Report(1.0); // Ensure we report completion
@@ -70,10 +72,13 @@ namespace GitContentSearch
         /// Uses git commands to efficiently search for a file through the repository's history.
         /// First gets all commit hashes, then uses binary search to locate the file.
         /// </summary>
-        private (string? CommitHash, string? FilePath) LocateFileUsingGitCommand(string fileName, IProgress<double>? progress = null)
+        private (string? CommitHash, string? FilePath) LocateFileUsingGitCommand(string fileName, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
         {
             try
             {
+                // Check for cancellation before starting
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 // Get all commit hashes first
                 var commits = new List<string>();
                 _processWrapper.StartAndProcessOutput(
@@ -85,8 +90,12 @@ namespace GitContentSearch
                         {
                             commits.Add(line);
                         }
-                    }
+                    },
+                    cancellationToken
                 );
+
+                // Check for cancellation after getting commits
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (commits.Count == 0)
                 {
@@ -98,9 +107,14 @@ namespace GitContentSearch
                 progress?.Report(0.1); // 10% progress after getting commits
 
                 // Use binary search to find the file
-                var result = BinarySearchFile(commits, fileName, progress);
+                var result = BinarySearchFile(commits, fileName, progress, cancellationToken);
                 progress?.Report(1.0); // Ensure we report completion
                 return result;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.WriteLine("File location operation was cancelled.");
+                throw; // Re-throw to signal cancellation
             }
             catch (Exception ex)
             {
@@ -121,7 +135,7 @@ namespace GitContentSearch
         /// The method maintains a path history to show how the file has moved through the repository,
         /// making it easier to understand file reorganizations and refactorings.
         /// </summary>
-        private (string? CommitHash, string? FilePath) BinarySearchFile(List<string> commits, string fileName, IProgress<double>? progress = null)
+        private (string? CommitHash, string? FilePath) BinarySearchFile(List<string> commits, string fileName, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
         {
             var searchQueue = new Queue<(int start, int end)>();
             searchQueue.Enqueue((0, commits.Count - 1));
@@ -135,6 +149,9 @@ namespace GitContentSearch
             // First use binary search to find any occurrence of the file
             while (searchQueue.Count > 0)
             {
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 var (start, end) = searchQueue.Dequeue();
                 if (start > end) continue;
 
@@ -161,7 +178,8 @@ namespace GitContentSearch
                             {
                                 foundPath = line;
                             }
-                        }
+                        },
+                        cancellationToken
                     );
 
                     var commitTime = _gitHelper.GetCommitTime(commitHash);
@@ -194,6 +212,10 @@ namespace GitContentSearch
                         searchQueue.Enqueue((mid + 1, end));
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    throw; // Re-throw cancellation
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError($"Error checking commit {commitHash}", ex);
@@ -207,6 +229,9 @@ namespace GitContentSearch
                 _logger.WriteLine($"\nFile {fileName} not found.");
                 return (null, null);
             }
+
+            // Check for cancellation before tracking history
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Now track the file forward from the initial commit to find renames
             _logger.WriteLine($"\nTracking file history forward from commit {initialCommitHash}...");
@@ -256,7 +281,8 @@ namespace GitContentSearch
                             var commitTime = _gitHelper.GetCommitTime(currentCommitHash);
                             _logger.WriteLine($"File was deleted in commit {currentCommitHash} at {commitTime}");
                         }
-                    }
+                    },
+                    cancellationToken
                 );
 
                 // If we found a more recent version of the file, return that
@@ -271,6 +297,10 @@ namespace GitContentSearch
                     
                     return (lastValidCommit, lastValidPath);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw; // Re-throw cancellation
             }
             catch (Exception ex)
             {

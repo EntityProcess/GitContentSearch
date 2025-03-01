@@ -42,6 +42,30 @@
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
         
+        <!-- Stop Button Style (for stopping search) -->
+        <Style Selector="Button.Stop">
+            <Setter Property="Background" Value="#E65100"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        
+        <Style Selector="Button.Stop:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F57C00"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <Style Selector="Button.Stop:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#EF6C00"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
+        <Style Selector="Button.Stop:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E65100"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        
         <!-- Secondary Button Style (for actions like Browse) -->
         <Style Selector="Button.Secondary">
             <Setter Property="Background" Value="Transparent"/>

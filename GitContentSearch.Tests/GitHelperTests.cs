@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using Xunit;
 using LibGit2Sharp;
+using System.Threading;
 
 namespace GitContentSearch.Tests
 {
@@ -29,6 +30,8 @@ namespace GitContentSearch.Tests
 
 			var processResult = new ProcessResult(string.Empty, "Error occurred", 1);
 			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -77,7 +80,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -103,7 +107,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -131,7 +136,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -157,7 +163,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), null, null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Trim() == "log --pretty=format:%H"), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -183,7 +190,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -202,7 +210,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -221,7 +230,8 @@ namespace GitContentSearch.Tests
 
 			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
 			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
-			processWrapperMock.Setup(pw => pw.Start(It.IsAny<ProcessStartInfo>(), null)).Returns(processResult);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
 
 			var gitHelper = new GitHelper(processWrapperMock.Object);
 
@@ -254,8 +264,8 @@ namespace GitContentSearch.Tests
 			// Setup mock to capture the actual command
 			string? capturedCommand = null;
 			processWrapperMock
-				.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()))
-				.Callback<string, string?, Stream?>((cmd, dir, stream) => capturedCommand = cmd)
+				.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Callback<string, string?, Stream?, CancellationToken>((cmd, dir, stream, token) => capturedCommand = cmd)
 				.Returns(new ProcessResult(string.Empty, string.Empty, 0));
 
 			// Act
@@ -278,8 +288,8 @@ namespace GitContentSearch.Tests
 			// Setup mock to capture the actual command
 			string? capturedCommand = null;
 			processWrapperMock
-				.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()))
-				.Callback<string, string?, Stream?>((cmd, dir, stream) => capturedCommand = cmd)
+				.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Callback<string, string?, Stream?, CancellationToken>((cmd, dir, stream, token) => capturedCommand = cmd)
 				.Returns(new ProcessResult(string.Empty, string.Empty, 0));
 
 			// Act

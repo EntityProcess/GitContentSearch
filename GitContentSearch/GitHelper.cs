@@ -66,10 +66,17 @@ namespace GitContentSearch
 
 		public List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath = "")
 		{
-			var mostRecentCommitHash = GetMostRecentCommitHash();
+			return GetGitCommits(earliestCommit, latestCommit, filePath, CancellationToken.None);
+		}
+
+		public List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath, CancellationToken cancellationToken)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			
+			var mostRecentCommitHash = GetMostRecentCommitHash(cancellationToken);
 			var filteredCommits = _follow 
-				? GetCommitsWithFollow(filePath) 
-				: GetCommits(filePath);
+				? GetCommitsWithFollow(filePath, cancellationToken) 
+				: GetCommits(filePath, cancellationToken);
 			
 			if (mostRecentCommitHash != null && !filteredCommits.Any(x => x.CommitHash == mostRecentCommitHash))
 			{
@@ -83,7 +90,12 @@ namespace GitContentSearch
 
 		private string? GetMostRecentCommitHash()
 		{
-			var result = RunGitCommand("log --pretty=format:%H -n 1");
+			return GetMostRecentCommitHash(CancellationToken.None);
+		}
+
+		private string? GetMostRecentCommitHash(CancellationToken cancellationToken)
+		{
+			var result = RunGitCommand("log --pretty=format:%H -n 1", null, cancellationToken);
 			if (result == null || result.ExitCode != 0)
 			{
 				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
@@ -95,9 +107,14 @@ namespace GitContentSearch
 
 		private List<Commit> GetCommits(string filePath)
 		{
+			return GetCommits(filePath, CancellationToken.None);
+		}
+
+		private List<Commit> GetCommits(string filePath, CancellationToken cancellationToken)
+		{
 			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
 			var arguments = $"log --pretty=format:%H {filePathArg}".Trim();
-			var result = RunGitCommand(arguments);
+			var result = RunGitCommand(arguments, null, cancellationToken);
 			if (result == null || result.ExitCode != 0)
 			{
 				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
@@ -112,9 +129,14 @@ namespace GitContentSearch
 
 		private List<Commit> GetCommitsWithFollow(string filePath)
 		{
+			return GetCommitsWithFollow(filePath, CancellationToken.None);
+		}
+
+		private List<Commit> GetCommitsWithFollow(string filePath, CancellationToken cancellationToken)
+		{
 			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
 			var arguments = $"log --name-status --pretty=format:%H --follow {filePathArg}".Trim();
-			var result = RunGitCommand(arguments);
+			var result = RunGitCommand(arguments, null, cancellationToken);
 			if (result == null || result.ExitCode != 0)
 			{
 				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
@@ -133,6 +155,9 @@ namespace GitContentSearch
 
 			foreach (var line in commitLines)
 			{
+				// Check for cancellation
+				cancellationToken.ThrowIfCancellationRequested();
+				
 				if (line.Length == 40 && line.All(c => char.IsLetterOrDigit(c)))
 				{
 					currentCommitHash = line;
@@ -191,7 +216,12 @@ namespace GitContentSearch
 
 		ProcessResult RunGitCommand(string arguments, Stream? outputStream = null)
 		{
-			return _processWrapper.Start(arguments, _workingDirectory, outputStream);
+			return RunGitCommand(arguments, outputStream, CancellationToken.None);
+		}
+
+		ProcessResult RunGitCommand(string arguments, Stream? outputStream, CancellationToken cancellationToken)
+		{
+			return _processWrapper.Start(arguments, _workingDirectory, outputStream, cancellationToken);
 		}
 
 		private List<Commit> FilterCommitsByRange(List<Commit> commits, string earliest, string latest)
@@ -261,7 +291,14 @@ namespace GitContentSearch
 
 		public Stream GetFileContentAtCommit(string commitHash, string filePath)
 		{
+			return GetFileContentAtCommit(commitHash, filePath, CancellationToken.None);
+		}
+
+		public Stream GetFileContentAtCommit(string commitHash, string filePath, CancellationToken cancellationToken)
+		{
 			EnsureRepositoryInitialized();
+			
+			cancellationToken.ThrowIfCancellationRequested();
 			
 			var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
 			if (commit == null)

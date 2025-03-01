@@ -1,5 +1,6 @@
 using GitContentSearch.Interfaces;
 using Moq;
+using System.Threading;
 
 namespace GitContentSearch.Tests
 {
@@ -42,7 +43,8 @@ namespace GitContentSearch.Tests
             _mockProcessWrapper.Setup(x => x.StartAndProcessOutput(
                 It.Is<string>(cmd => cmd == "log --all --pretty=format:%H"),
                 It.IsAny<string>(),
-                It.IsAny<Action<string>>()
+                It.IsAny<Action<string>>(),
+                It.IsAny<CancellationToken>()
             ));
 
             // Act
@@ -80,8 +82,9 @@ namespace GitContentSearch.Tests
                 .Setup(x => x.StartAndProcessOutput(
                     It.Is<string>(cmd => cmd == "log --all --pretty=format:%H"),
                     It.IsAny<string>(),
-                    It.IsAny<Action<string>>()))
-                .Callback((string cmd, string dir, Action<string> callback) =>
+                    It.IsAny<Action<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((string cmd, string dir, Action<string> callback, CancellationToken token) =>
                 {
                     callback(fullCommitHash);
                     processOutputCalled = true;
@@ -91,8 +94,9 @@ namespace GitContentSearch.Tests
                 .Setup(x => x.StartAndProcessOutput(
                     It.Is<string>(cmd => cmd == $"ls-tree --name-only -r {fullCommitHash}"),
                     It.IsAny<string>(),
-                    It.IsAny<Action<string>>()))
-                .Callback((string cmd, string dir, Action<string> callback) =>
+                    It.IsAny<Action<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((string cmd, string dir, Action<string> callback, CancellationToken token) =>
                 {
                     callback(expectedFilePath);
                 });
@@ -101,7 +105,8 @@ namespace GitContentSearch.Tests
                 .Setup(x => x.StartAndProcessOutput(
                     It.Is<string>(cmd => cmd == $"log --follow --name-status {fullCommitHash}..HEAD"),
                     It.IsAny<string>(),
-                    It.IsAny<Action<string>>()));
+                    It.IsAny<Action<string>>(),
+                    It.IsAny<CancellationToken>()));
 
             // Act
             var result = _gitLocator.LocateFile(searchFileName);

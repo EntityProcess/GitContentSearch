@@ -15,6 +15,8 @@
 
     <Window.Resources>
         <converters:OperationColorConverter x:Key="OperationColorConverter"/>
+        <converters:BoolConverter x:Key="BoolConverter"/>
+        <converters:OperationButtonTextConverter x:Key="OperationButtonTextConverter"/>
     </Window.Resources>
 
     <Design.DataContext>
@@ -33,6 +35,7 @@
                     Classes="Locate"
                     Content="Locate" 
                     Command="{Binding LocateFileCommand}" 
+                    IsEnabled="{Binding !IsSearching}"
                     Margin="8,0"/>
             <Button Grid.Column="3" 
                     Classes="Secondary"
@@ -92,9 +95,16 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0" 
-                    Classes="Primary"
-                    Content="Start Search" 
-                    Command="{Binding StartSearchCommand}"/>
+                    Classes.Primary="{Binding !IsSearching}"
+                    Classes.Stop="{Binding IsSearching}"
+                    Command="{Binding StartSearchCommand}">
+                <Button.Content>
+                    <MultiBinding Converter="{StaticResource OperationButtonTextConverter}">
+                        <Binding Path="IsSearching"/>
+                        <Binding Path="IsLocateOperation"/>
+                    </MultiBinding>
+                </Button.Content>
+            </Button>
             <ProgressBar Grid.Column="1" 
                         Height="4"
                         Maximum="100"

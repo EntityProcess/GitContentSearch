@@ -1,6 +1,7 @@
 ﻿using GitContentSearch.Helpers;
 using GitContentSearch.Interfaces;
 using System.IO;
+using System.Threading;
 
 namespace GitContentSearch
 {
@@ -23,6 +24,11 @@ namespace GitContentSearch
 
 		private bool FileExistsInCurrentCommit(string filePath)
 		{
+			return FileExistsInCurrentCommit(filePath, CancellationToken.None);
+		}
+
+		private bool FileExistsInCurrentCommit(string filePath, CancellationToken cancellationToken)
+		{
 			try
 			{
 				if (!_gitHelper.IsValidRepository())
@@ -32,7 +38,7 @@ namespace GitContentSearch
 				}
 
 				// Use LibGit2Sharp to check file existence
-				var content = _gitHelper.GetFileContentAtCommit("HEAD", filePath);
+				var content = _gitHelper.GetFileContentAtCommit("HEAD", filePath, cancellationToken);
 				return true;
 			}
 			catch (Exception)
@@ -41,7 +47,7 @@ namespace GitContentSearch
 			}
 		}
 
-		public void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "", IProgress<double>? progress = null)
+		public void SearchContent(string filePath, string searchString, string earliestCommit = "", string latestCommit = "", IProgress<double>? progress = null, CancellationToken cancellationToken = default)
 		{
 			_progress = progress;
 			_currentProgress = 0;
@@ -68,7 +74,7 @@ namespace GitContentSearch
 				return;
 			}
 
-			if (!FileExistsInCurrentCommit(filePath))
+			if (!FileExistsInCurrentCommit(filePath, cancellationToken))
 			{
 				_logger.WriteLine($"Warning: The file '{filePath}' does not exist in the current commit.");
 				_logger.WriteLine("The search will not include commits where the file path was not found.");
@@ -93,7 +99,7 @@ namespace GitContentSearch
 			}
 
 			// Get commits for the specified range
-			var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit, filePath);
+			var commits = _gitHelper.GetGitCommits(earliestCommit, latestCommit, filePath, cancellationToken);
 			commits.Reverse();
 
 			if (commits == null || commits.Count() == 0)
@@ -135,18 +141,24 @@ namespace GitContentSearch
 			int totalPossibleSearches = commits.Count;
 			int totalSearchesDone = 0;
 
+			// Check for cancellation before starting search
+			cancellationToken.ThrowIfCancellationRequested();
+
 			// Search the most recent match first with FindLastMatchIndex
-			int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, 0, ref totalSearchesDone, totalPossibleSearches);
+			int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, 0, ref totalSearchesDone, totalPossibleSearches, cancellationToken);
+
+			// Check for cancellation before continuing
+			cancellationToken.ThrowIfCancellationRequested();
 
 			// Pass lastMatchIndex to FindFirstMatchIndex to optimize the search range
-			int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, lastMatchIndex, ref totalSearchesDone, totalPossibleSearches);
+			int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, lastMatchIndex, ref totalSearchesDone, totalPossibleSearches, cancellationToken);
 
 			LogResults(firstMatchIndex, lastMatchIndex, commits, searchString);
 			
 			_progress?.Report(1.0);
 		}
 
-		private int FindFirstMatchIndex(List<Commit> commits, string filePath, string searchString, int lastMatchIndex, ref int totalSearchesDone, int totalPossibleSearches)
+		private int FindFirstMatchIndex(List<Commit> commits, string filePath, string searchString, int lastMatchIndex, ref int totalSearchesDone, int totalPossibleSearches, CancellationToken cancellationToken)
 		{
 			int left = 0;
 			int right = lastMatchIndex; // Use lastMatchIndex as the upper bound
@@ -154,13 +166,15 @@ namespace GitContentSearch
 
 			while (left <= right)
 			{
+				cancellationToken.ThrowIfCancellationRequested();
+
 				int mid = left + (right - left) / 2;
 				var commit = commits[mid];
 				bool found = false;
 
 				try
 				{
-					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath);
+					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken);
 					bool isBinary = !_fileSearcher.IsTextStream(stream);
 					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
 
@@ -192,7 +206,7 @@ namespace GitContentSearch
 			return firstMatchIndex ?? -1;
 		}
 
-		private int FindLastMatchIndex(List<Commit> commits, string filePath, string searchString, int searchStartIndex, ref int totalSearchesDone, int totalPossibleSearches)
+		private int FindLastMatchIndex(List<Commit> commits, string filePath, string searchString, int searchStartIndex, ref int totalSearchesDone, int totalPossibleSearches, CancellationToken cancellationToken)
 		{
 			int left = searchStartIndex == -1 ? 0 : searchStartIndex;
 			int right = commits.Count - 1;
@@ -200,13 +214,15 @@ namespace GitContentSearch
 
 			while (left <= right)
 			{
+				cancellationToken.ThrowIfCancellationRequested();
+
 				int mid = left + (right - left) / 2;
 				var commit = commits[mid];
 				bool found = false;
 
 				try
 				{
-					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath);
+					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken);
 					bool isBinary = !_fileSearcher.IsTextStream(stream);
 					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
 
@@ -232,7 +248,7 @@ namespace GitContentSearch
 				else
 				{
 					// If not found, check remaining commits with linear search
-					int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, ref totalSearchesDone, totalPossibleSearches, reverse: true);
+					int? linearSearchResult = PerformLinearSearch(commits, filePath, searchString, mid + 1, right, ref totalSearchesDone, totalPossibleSearches, cancellationToken, reverse: true);
 					if (linearSearchResult.HasValue)
 					{
 						lastMatchIndex = linearSearchResult;
@@ -246,7 +262,7 @@ namespace GitContentSearch
 			return lastMatchIndex ?? -1;
 		}
 
-		private int? PerformLinearSearch(List<Commit> commits, string filePath, string searchString, int left, int right, ref int totalSearchesDone, int totalPossibleSearches, bool reverse = false)
+		private int? PerformLinearSearch(List<Commit> commits, string filePath, string searchString, int left, int right, ref int totalSearchesDone, int totalPossibleSearches, CancellationToken cancellationToken, bool reverse = false)
 		{
 			int step = reverse ? -1 : 1; // Use step to control direction of iteration
 			int start = reverse ? right : left;
@@ -254,12 +270,14 @@ namespace GitContentSearch
 
 			for (int i = start; reverse ? i >= end : i <= end; i += step)
 			{
+				cancellationToken.ThrowIfCancellationRequested();
+
 				var commit = commits[i];
 				bool found = false;
 
 				try
 				{
-					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath);
+					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken);
 					bool isBinary = !_fileSearcher.IsTextStream(stream);
 					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
 

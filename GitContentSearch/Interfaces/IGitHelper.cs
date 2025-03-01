@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace GitContentSearch.Interfaces
 {
@@ -11,6 +12,8 @@ namespace GitContentSearch.Interfaces
 		string GetCommitTime(string commitHash);
 		bool IsValidCommit(string commitHash);
 		Stream GetFileContentAtCommit(string commitHash, string filePath);
+		Stream GetFileContentAtCommit(string commitHash, string filePath, CancellationToken cancellationToken);
 		List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath = "");
+		List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath, CancellationToken cancellationToken);
 	}
 }

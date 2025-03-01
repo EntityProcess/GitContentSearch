@@ -9,6 +9,8 @@ using GitContentSearch.UI.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GitContentSearch.UI.ViewModels;
@@ -20,6 +22,7 @@ public partial class MainWindowViewModel : ObservableObject
     private IGitHelper? _gitHelper;
     private IFileSearcher? _fileSearcher;
     private IFileManager? _fileManager;
+    private CancellationTokenSource? _cancellationTokenSource;
 
     public MainWindowViewModel(IStorageProvider storageProvider, SettingsService settingsService)
     {
@@ -31,8 +34,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
-	[NotifyCanExecuteChangedFor(nameof(LocateFileCommand))]
-	private string filePath = string.Empty;
+    [NotifyCanExecuteChangedFor(nameof(LocateFileCommand))]
+    private string filePath = string.Empty;
 
     [RelayCommand]
     private async Task HandleFilePathLostFocusAsync()
@@ -121,8 +124,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
-	[NotifyCanExecuteChangedFor(nameof(LocateFileCommand))]
-	private string workingDirectory = string.Empty;
+    [NotifyCanExecuteChangedFor(nameof(LocateFileCommand))]
+    private string workingDirectory = string.Empty;
 
     [ObservableProperty]
     private string logDirectory = string.Empty;
@@ -170,11 +173,13 @@ public partial class MainWindowViewModel : ObservableObject
     private string joinedLogOutput = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
     private bool isSearching;
 
     [ObservableProperty]
     private bool isLocateOperation;
+
+    [ObservableProperty]
+    private bool isProcessingCommand;
 
     private async Task LoadSettingsAsync()
     {
@@ -305,72 +310,95 @@ public partial class MainWindowViewModel : ObservableObject
     private bool CanStartSearch => 
         !string.IsNullOrEmpty(FilePath) && 
         !string.IsNullOrEmpty(SearchString) && 
-        !string.IsNullOrEmpty(WorkingDirectory) &&
-        !IsSearching;
+        !string.IsNullOrEmpty(WorkingDirectory);
 
     private bool CanLocateFile =>
         !string.IsNullOrEmpty(FilePath) &&
-        !string.IsNullOrEmpty(WorkingDirectory) &&
-        !IsSearching;
+        !string.IsNullOrEmpty(WorkingDirectory);
 
     [RelayCommand(CanExecute = nameof(CanLocateFile))]
-    private async Task LocateFileAsync()
+    private void LocateFile()
     {
+        if (IsSearching)
+        {
+            // Cancel the search
+            LogOutput.Add("File location cancelled by user.");
+            _cancellationTokenSource?.Cancel();
+            return;
+        }
+
         IsSearching = true;
+        IsProcessingCommand = true; // Set to true when starting a command
         IsLocateOperation = true;
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
-        StreamWriter? fileWriter = null;
-        try
+        
+        // Create a new cancellation token source
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+
+        // Run the locate operation on a background thread
+        _ = Task.Run(async () =>
         {
-            if (!Directory.Exists(WorkingDirectory))
+            StreamWriter? fileWriter = null;
+            try
             {
-                LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
-                ShowProgress = false;
-                return;
-            }
-
-            var processWrapper = new ProcessWrapper();
-            string logAndTempFileDirectory = LogDirectory;
-            if (string.IsNullOrEmpty(logAndTempFileDirectory))
-            {
-                logAndTempFileDirectory = Path.Combine(Path.GetTempPath(), "GitContentSearch");
-                Directory.CreateDirectory(logAndTempFileDirectory);
-            }
-
-            var uiTextWriter = new UiTextWriter(LogOutput);
-            var logFile = Path.Combine(logAndTempFileDirectory, "search_log.txt");
-            fileWriter = new StreamWriter(logFile, append: true);
-            var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
-            var searchLogger = new SearchLogger(writer, progressMessage => 
-            {
-                // Ensure UI updates happen on the UI thread
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                // Check if directory exists on UI thread
+                bool directoryExists = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => 
+                    Directory.Exists(WorkingDirectory));
+                
+                if (!directoryExists)
                 {
-                    // Replace the last line if it was a progress message
-                    if (LogOutput.Count > 0 && LogOutput[LogOutput.Count - 1].StartsWith("Processing commits:"))
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        LogOutput[LogOutput.Count - 1] = progressMessage;
-                    }
-                    else
+                        LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
+                        ShowProgress = false;
+                        IsProcessingCommand = false; // Reset when command fails
+                    });
+                    return;
+                }
+
+                var processWrapper = new ProcessWrapper();
+                string logAndTempFileDirectory = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LogDirectory);
+                
+                if (string.IsNullOrEmpty(logAndTempFileDirectory))
+                {
+                    logAndTempFileDirectory = Path.Combine(Path.GetTempPath(), "GitContentSearch");
+                    Directory.CreateDirectory(logAndTempFileDirectory);
+                }
+
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Get values from UI thread
+                string workingDir = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WorkingDirectory);
+                string filePath = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FilePath);
+                
+                // Create a log file
+                string logFileName = $"locate_{Path.GetFileName(filePath)}_{DateTime.Now:yyyyMMdd_HHmmss}.log";
+                string logFilePath = Path.Combine(logAndTempFileDirectory, logFileName);
+                fileWriter = new StreamWriter(logFilePath, false, Encoding.UTF8);
+                
+                // Create a composite writer that writes to both the log file and our in-memory log
+                var searchLogger = new SearchLogger(fileWriter);
+                searchLogger.LogAdded += (sender, message) =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        LogOutput.Add(progressMessage);
-                    }
-                });
-            });
+                        LogOutput.Add(message);
+                    });
+                };
+                
+                var writer = searchLogger.Writer;
+                
+                // Initialize the git helper
+                var gitHelper = new GitHelper(processWrapper, workingDir, false, searchLogger);
+                var gitLocator = new GitFileLocator(gitHelper, searchLogger, processWrapper);
+                
+                // Log the header
+                searchLogger.LogHeader("locate", workingDir, filePath);
 
-            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, searchLogger);
-            var gitLocator = new GitFileLocator(_gitHelper, searchLogger, processWrapper);
-
-            writer.WriteLine(new string('=', 50));
-            writer.WriteLine($"GitContentSearch locate started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            writer.WriteLine($"Working Directory (Git Repo): {WorkingDirectory}");
-            writer.WriteLine($"File to locate: {FilePath}");
-            writer.WriteLine(new string('=', 50));
-
-            var (commitHash, foundPath) = await Task.Run(() => 
-            {
                 var progress = new Progress<double>(value =>
                 {
                     // Ensure UI updates happen on the UI thread
@@ -380,140 +408,243 @@ public partial class MainWindowViewModel : ObservableObject
                     });
                 });
 
-                return gitLocator.LocateFile(FilePath, progress);
-            });
+                // Allow cancellation now that we're ready to start the locate operation
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    // We no longer need to set IsProcessingCommand here
+                });
 
-            // Update the FilePath with the found path if one was found
-            if (!string.IsNullOrEmpty(foundPath))
+                var (commitHash, foundPath) = gitLocator.LocateFile(filePath, progress, cancellationToken);
+
+                // Update the FilePath with the found path if one was found
+                if (!string.IsNullOrEmpty(foundPath))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        FilePath = foundPath;
+                    });
+                }
+                
+                writer.WriteLine($"GitContentSearch locate completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                writer.WriteLine(new string('=', 50));
+            }
+            catch (OperationCanceledException)
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    FilePath = foundPath;
+                    LogOutput.Add("File location cancelled by user.");
+                    SearchProgress = 0;
+                    ShowProgress = false;
+                    IsProcessingCommand = false; // Reset when cancelled
                 });
             }
-        }
-        catch (Exception ex)
-        {
-            LogOutput.Add($"Error: {ex.Message}");
-            if (ex.InnerException != null)
+            catch (Exception ex)
             {
-                LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LogOutput.Add($"Error: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
+                    }
+                    SearchProgress = 0;
+                    ShowProgress = false;
+                    IsProcessingCommand = false; // Reset on error
+                });
             }
-        }
-        finally
-        {
-            if (fileWriter != null)
+            finally
             {
-                fileWriter.Flush();
-                fileWriter.Dispose();
+                if (fileWriter != null)
+                {
+                    fileWriter.Flush();
+                    fileWriter.Dispose();
+                }
+                
+                // Reset the UI state on the UI thread
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    IsSearching = false;
+                    IsProcessingCommand = false; // Always reset in finally block
+                    // Reset IsLocateOperation when the operation is complete
+                    IsLocateOperation = false;
+                });
+                
+                _cancellationTokenSource?.Dispose();
+                _cancellationTokenSource = null;
             }
-            IsSearching = false;
-            // Don't reset IsLocateOperation here - let it persist until next operation
-        }
+        }, CancellationToken.None); // Use a separate token to avoid cancelling this task
     }
 
     [RelayCommand(CanExecute = nameof(CanStartSearch))]
-    private async Task StartSearchAsync()
+    private void StartSearch()
     {
+        if (IsSearching)
+        {
+            // Cancel the search
+            LogOutput.Add("Search cancelled by user.");
+            _cancellationTokenSource?.Cancel();
+            return;
+        }
+
         IsSearching = true;
+        IsProcessingCommand = true; // Set to true when starting a command
         IsLocateOperation = false; // Reset the locate operation state when starting a search
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
-        StreamWriter? fileWriter = null;
-        try
+        
+        // Create a new cancellation token source
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+
+        // Run the search on a background thread
+        _ = Task.Run(async () =>
         {
-            if (!Directory.Exists(WorkingDirectory))
+            StreamWriter? fileWriter = null;
+            try
             {
-                LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
-                ShowProgress = false;
-                return;
-            }
-
-            var processWrapper = new ProcessWrapper();
-            string logAndTempFileDirectory = LogDirectory;
-            if (string.IsNullOrEmpty(logAndTempFileDirectory))
-            {
-                logAndTempFileDirectory = Path.Combine(Path.GetTempPath(), "GitContentSearch");
-                Directory.CreateDirectory(logAndTempFileDirectory);
-            }
-
-            var uiTextWriter = new UiTextWriter(LogOutput);
-            var logFile = Path.Combine(logAndTempFileDirectory, "search_log.txt");
-            fileWriter = new StreamWriter(logFile, append: true);
-            var writer = new CompositeTextWriter(uiTextWriter, fileWriter);
-            var searchLogger = new SearchLogger(writer, progressMessage => 
-            {
-                // Ensure UI updates happen on the UI thread
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                // Check if directory exists on UI thread
+                bool directoryExists = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => 
+                    Directory.Exists(WorkingDirectory));
+                
+                if (!directoryExists)
                 {
-                    // Replace the last line if it was a progress message
-                    if (LogOutput.Count > 0 && LogOutput[LogOutput.Count - 1].StartsWith("Processing commits:"))
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        LogOutput[LogOutput.Count - 1] = progressMessage;
-                    }
-                    else
+                        LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
+                        ShowProgress = false;
+                        IsProcessingCommand = false; // Reset when command fails
+                    });
+                    return;
+                }
+
+                var processWrapper = new ProcessWrapper();
+                string logAndTempFileDirectory = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LogDirectory);
+                
+                if (string.IsNullOrEmpty(logAndTempFileDirectory))
+                {
+                    logAndTempFileDirectory = Path.Combine(Path.GetTempPath(), "GitContentSearch");
+                    Directory.CreateDirectory(logAndTempFileDirectory);
+                }
+
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Get values from UI thread to use in background thread
+                string workingDir = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WorkingDirectory);
+                bool followHistory = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FollowHistory);
+                string filePath = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FilePath);
+                string searchString = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SearchString);
+                string earliestCommit = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => EarliestCommit);
+                string latestCommit = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LatestCommit);
+
+                // Create a log file
+                string logFileName = $"search_{Path.GetFileName(filePath)}_{DateTime.Now:yyyyMMdd_HHmmss}.log";
+                string logFilePath = Path.Combine(logAndTempFileDirectory, logFileName);
+                fileWriter = new StreamWriter(logFilePath, false, Encoding.UTF8);
+                
+                // Create a composite writer that writes to both the log file and our in-memory log
+                var searchLogger = new SearchLogger(fileWriter);
+                searchLogger.LogAdded += (sender, message) =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        LogOutput.Add(progressMessage);
+                        LogOutput.Add(message);
+                    });
+                };
+                
+                var writer = searchLogger.Writer;
+                
+                // Initialize the git helper and other components
+                _gitHelper = new GitHelper(processWrapper, workingDir, followHistory, searchLogger);
+                _fileSearcher = new FileSearcher();
+                _fileManager = new FileManager(logAndTempFileDirectory);
+                
+                // Log the header
+                searchLogger.LogHeader("search", workingDir, filePath);
+
+                var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, searchLogger);
+                
+                var progress = new Progress<double>(value =>
+                {
+                    // Ensure UI updates happen on the UI thread
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        SearchProgress = value * 100;
+                    });
+                });
+
+                // Check for cancellation before starting search
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        LogOutput.Add("Search cancelled before it started.");
+                        IsProcessingCommand = false; // Reset when cancelled
+                    });
+                    return;
+                }
+
+                // Allow cancellation now that we're ready to start the search
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    // We no longer need to set IsProcessingCommand here
+                });
+
+                // Run the search operation
+                gitContentSearcher.SearchContent(
+                    filePath,
+                    searchString,
+                    earliestCommit,
+                    latestCommit,
+                    progress,
+                    cancellationToken);
+
+                writer.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                writer.WriteLine(new string('=', 50));
+                
+                // Ensure we flush and dispose the writer
+                writer.Flush();
+            }
+            catch (OperationCanceledException)
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LogOutput.Add("Search cancelled by user.");
+                    SearchProgress = 0;
+                    ShowProgress = false;
+                    IsProcessingCommand = false; // Reset when cancelled
+                });
+            }
+            catch (Exception ex)
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LogOutput.Add($"Error: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
                     }
                 });
-            });
-
-            _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, searchLogger);
-            _fileSearcher = new FileSearcher();
-            _fileManager = new FileManager(logAndTempFileDirectory);
-            
-            writer.WriteLine(new string('=', 50));
-            writer.WriteLine($"GitContentSearch started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            writer.WriteLine($"Working Directory (Git Repo): {WorkingDirectory}");
-            writer.WriteLine($"Logs and temporary files will be created in: {logAndTempFileDirectory}");
-            writer.WriteLine(new string('=', 50));
-
-            var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, searchLogger);
-            
-            var progress = new Progress<double>(value =>
+            }
+            finally
             {
-                // Ensure UI updates happen on the UI thread
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                if (fileWriter != null)
                 {
-                    SearchProgress = value * 100;
+                    fileWriter.Flush();
+                    fileWriter.Dispose();
+                }
+                
+                // Reset the UI state on the UI thread
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    IsSearching = false;
+                    IsProcessingCommand = false; // Always reset in finally block
                 });
-            });
-
-            // Since we've already validated in CanStartSearch that FilePath and SearchString are non-empty,
-            // and EarliestCommit and LatestCommit have default empty string values, we can safely pass them
-            await Task.Run(() => gitContentSearcher.SearchContent(
-                FilePath,
-                SearchString,
-                EarliestCommit,
-                LatestCommit,
-                progress));
-
-            writer.WriteLine($"GitContentSearch completed at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            writer.WriteLine(new string('=', 50));
-            
-            // Ensure we flush and dispose the writer
-            writer.Flush();
-        }
-        catch (Exception ex)
-        {
-            LogOutput.Add($"Error: {ex.Message}");
-            if (ex.InnerException != null)
-            {
-                LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
+                
+                _cancellationTokenSource?.Dispose();
+                _cancellationTokenSource = null;
             }
-            SearchProgress = 0;
-            ShowProgress = false;
-        }
-        finally
-        {
-            if (fileWriter != null)
-            {
-                fileWriter.Flush();
-                fileWriter.Dispose();
-            }
-            IsSearching = false;
-            // Don't reset IsLocateOperation here
-        }
+        }, CancellationToken.None); // Use a separate token to avoid cancelling this task
     }
 } 
