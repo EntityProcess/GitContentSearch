@@ -173,6 +173,9 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
     private bool isSearching;
 
+    [ObservableProperty]
+    private bool isLocateOperation;
+
     private async Task LoadSettingsAsync()
     {
         var settings = await _settingsService.LoadSettingsAsync();
@@ -314,6 +317,7 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task LocateFileAsync()
     {
         IsSearching = true;
+        IsLocateOperation = true;
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
@@ -357,7 +361,7 @@ public partial class MainWindowViewModel : ObservableObject
             });
 
             _gitHelper = new GitHelper(processWrapper, WorkingDirectory, FollowHistory, searchLogger);
-            var gitLocator = new GitLocator(_gitHelper, searchLogger, processWrapper);
+            var gitLocator = new GitFileLocator(_gitHelper, searchLogger, processWrapper);
 
             writer.WriteLine(new string('=', 50));
             writer.WriteLine($"GitContentSearch locate started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
@@ -395,7 +399,7 @@ public partial class MainWindowViewModel : ObservableObject
                 fileWriter.Dispose();
             }
             IsSearching = false;
-            ShowProgress = false;
+            // Don't reset IsLocateOperation here - let it persist until next operation
         }
     }
 
@@ -403,6 +407,7 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task StartSearchAsync()
     {
         IsSearching = true;
+        IsLocateOperation = false; // Reset the locate operation state when starting a search
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
@@ -499,6 +504,7 @@ public partial class MainWindowViewModel : ObservableObject
                 fileWriter.Dispose();
             }
             IsSearching = false;
+            // Don't reset IsLocateOperation here
         }
     }
 } 

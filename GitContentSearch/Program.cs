@@ -52,7 +52,7 @@ namespace GitContentSearch
 
 					var processWrapper = new ProcessWrapper();
 					var gitHelper = new GitHelper(processWrapper, locateWorkingDir, false, logger);
-					var gitLocator = new GitLocator(gitHelper, logger, processWrapper);
+					var gitLocator = new GitFileLocator(gitHelper, logger, processWrapper);
 					gitLocator.LocateFile(fileName);
 
 					logger.LogFooter();

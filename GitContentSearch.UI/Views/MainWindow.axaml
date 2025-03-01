@@ -3,6 +3,7 @@
         xmlns:vm="using:GitContentSearch.UI.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="using:GitContentSearch.UI.Converters"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
         x:Class="GitContentSearch.UI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -11,6 +12,10 @@
         MinWidth="700"
         MinHeight="600"
         WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <converters:OperationColorConverter x:Key="OperationColorConverter"/>
+    </Window.Resources>
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
@@ -95,6 +100,7 @@
                         Maximum="100"
                         Value="{Binding SearchProgress}" 
                         IsVisible="{Binding ShowProgress}"
+                        Foreground="{Binding IsLocateOperation, Converter={StaticResource OperationColorConverter}}"
                         Margin="8,0,0,0"/>
         </Grid>
 

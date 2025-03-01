@@ -3,19 +3,19 @@ using Moq;
 
 namespace GitContentSearch.Tests
 {
-	public class GitLocatorTests
+	public class GitFileLocatorTests
     {
         private readonly Mock<IGitHelper> _mockGitHelper;
         private readonly Mock<ISearchLogger> _mockLogWriter;
         private readonly Mock<IProcessWrapper> _mockProcessWrapper;
-        private readonly GitLocator _gitLocator;
+        private readonly GitFileLocator _gitLocator;
 
-        public GitLocatorTests()
+        public GitFileLocatorTests()
         {
             _mockGitHelper = new Mock<IGitHelper>();
             _mockLogWriter = new Mock<ISearchLogger>();
             _mockProcessWrapper = new Mock<IProcessWrapper>();
-            _gitLocator = new GitLocator(_mockGitHelper.Object, _mockLogWriter.Object, _mockProcessWrapper.Object);
+            _gitLocator = new GitFileLocator(_mockGitHelper.Object, _mockLogWriter.Object, _mockProcessWrapper.Object);
         }
 
         [Fact]
@@ -40,7 +40,7 @@ namespace GitContentSearch.Tests
             _mockGitHelper.Setup(x => x.IsValidRepository()).Returns(true);
             _mockGitHelper.Setup(x => x.GetRepositoryPath()).Returns("dummy/path");
             _mockProcessWrapper.Setup(x => x.StartAndProcessOutput(
-                It.Is<string>(cmd => cmd == "log --all --name-only --pretty=format:%H"),
+                It.Is<string>(cmd => cmd == "log --all --pretty=format:%H"),
                 It.IsAny<string>(),
                 It.IsAny<Action<string>>()
             ));
@@ -51,8 +51,8 @@ namespace GitContentSearch.Tests
             // Assert
             Assert.Null(result.CommitHash);
             Assert.Null(result.FilePath);
+            _mockLogWriter.Verify(x => x.WriteLine("No commits found in repository."), Times.Once);
             _mockLogWriter.Verify(x => x.LogFooter(), Times.Once);
-            _mockLogWriter.Verify(x => x.WriteLine("Processed 0 commits without finding the file."), Times.Once);
             _mockLogWriter.Verify(x => x.WriteLine("\nFile nonexistent.txt not found."), Times.Once);
         }
 
@@ -78,32 +78,40 @@ namespace GitContentSearch.Tests
 
             _mockProcessWrapper
                 .Setup(x => x.StartAndProcessOutput(
-                    It.Is<string>(cmd => cmd == "log --all --name-only --pretty=format:%H"),
+                    It.Is<string>(cmd => cmd == "log --all --pretty=format:%H"),
                     It.IsAny<string>(),
                     It.IsAny<Action<string>>()))
                 .Callback((string cmd, string dir, Action<string> callback) =>
                 {
-                    try
-                    {
-                        callback(fullCommitHash);
-                        callback(expectedFilePath);
-                    }
-                    catch (Exception ex) when (ex.Message == "Found match")
-                    {
-                        // This is expected - the GitLocator throws this to break out of processing
-                    }
+                    callback(fullCommitHash);
                     processOutputCalled = true;
                 });
+
+            _mockProcessWrapper
+                .Setup(x => x.StartAndProcessOutput(
+                    It.Is<string>(cmd => cmd == $"ls-tree --name-only -r {fullCommitHash}"),
+                    It.IsAny<string>(),
+                    It.IsAny<Action<string>>()))
+                .Callback((string cmd, string dir, Action<string> callback) =>
+                {
+                    callback(expectedFilePath);
+                });
+
+            _mockProcessWrapper
+                .Setup(x => x.StartAndProcessOutput(
+                    It.Is<string>(cmd => cmd == $"log --follow --name-status {fullCommitHash}..HEAD"),
+                    It.IsAny<string>(),
+                    It.IsAny<Action<string>>()));
 
             // Act
             var result = _gitLocator.LocateFile(searchFileName);
 
             // Assert
             Assert.True(processOutputCalled, "Process output callback was not called");
-            Assert.Equal(fullCommitHash, result.CommitHash); // Compare against the full commit hash
+            Assert.Equal(fullCommitHash, result.CommitHash);
             Assert.Equal(expectedFilePath, result.FilePath);
-            _mockLogWriter.Verify(x => x.WriteLine($"Found '{searchFileName}' in commit {fullCommitHash} ({expectedCommitTime})"), Times.Once);
-            _mockLogWriter.Verify(x => x.WriteLine($"Full path: {expectedFilePath}"), Times.Once);
+            _mockLogWriter.Verify(x => x.WriteLine($"Checked commit: {fullCommitHash} at {expectedCommitTime}, found: true"), Times.Once);
+            _mockLogWriter.Verify(x => x.WriteLine($"  Path: {expectedFilePath}"), Times.AtLeastOnce);
         }
     }
 } 

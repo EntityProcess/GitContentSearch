@@ -1,7 +1,5 @@
-﻿using LibGit2Sharp;
-using GitContentSearch.Interfaces;
-using System.IO;
-using System;
+﻿using GitContentSearch.Interfaces;
+using LibGit2Sharp;
 
 namespace GitContentSearch
 {
@@ -10,7 +8,7 @@ namespace GitContentSearch
 		private readonly IProcessWrapper _processWrapper;
 		private readonly string? _workingDirectory;
 		private readonly bool _follow;
-		private readonly ISearchLogger _logger;
+		private readonly ISearchLogger? _logger;
 		private Repository? _repository;
 
 		public GitHelper(IProcessWrapper processWrapper)
@@ -28,7 +26,7 @@ namespace GitContentSearch
 		{
 		}
 
-		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow, ISearchLogger logger)
+		public GitHelper(IProcessWrapper processWrapper, string? workingDirectory, bool follow, ISearchLogger? logger)
 		{
 			_processWrapper = processWrapper;
 			_workingDirectory = workingDirectory;
@@ -42,7 +40,7 @@ namespace GitContentSearch
 			try
 			{
 				string repoPath = Repository.Discover(_workingDirectory ?? Directory.GetCurrentDirectory());
-				if (repoPath != null)
+				if (!string.IsNullOrEmpty(repoPath))
 				{
 					_repository = new Repository(repoPath);
 				}
@@ -117,7 +115,7 @@ namespace GitContentSearch
 			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
 			var arguments = $"log --name-status --pretty=format:%H --follow {filePathArg}".Trim();
 			var result = RunGitCommand(arguments);
-			if (result.ExitCode != 0)
+			if (result == null || result.ExitCode != 0)
 			{
 				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
 				return new List<Commit>();
@@ -188,7 +186,7 @@ namespace GitContentSearch
 
 		private string FormatFilePathForGit(string filePath)
 		{
-			return filePath.StartsWith("/") ? $"\"{filePath.Substring(1)}\"" : $"\"{filePath}\"";
+			return filePath.StartsWith("/") ? $"\"{filePath[1..]}\"" : $"\"{filePath}\"";
 		}
 
 		ProcessResult RunGitCommand(string arguments, Stream? outputStream = null)
@@ -238,7 +236,7 @@ namespace GitContentSearch
 		public string GetRepositoryPath()
 		{
 			EnsureRepositoryInitialized();
-			return _repository!.Info.WorkingDirectory;
+			return _repository!.Info.WorkingDirectory ?? throw new InvalidOperationException("Repository working directory is null.");
 		}
 
 		public bool IsValidRepository()

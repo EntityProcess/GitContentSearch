@@ -1,8 +1,6 @@
-using System;
-
 namespace GitContentSearch.Interfaces
 {
-    public interface IGitLocator
+	public interface IGitFileLocator
     {
         (string? CommitHash, string? FilePath) LocateFile(string fileName, IProgress<double>? progress = null);
     }

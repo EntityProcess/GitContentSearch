@@ -1,7 +1,12 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:GitContentSearch.UI.Converters"
              x:Class="GitContentSearch.UI.App"
              RequestedThemeVariant="Dark">
+             
+    <Application.Resources>
+        <converters:OperationColorConverter x:Key="OperationColorConverter"/>
+    </Application.Resources>
              
     <Application.Styles>
         <FluentTheme />
@@ -134,7 +139,6 @@
         
         <!-- ProgressBar Styles -->
         <Style Selector="ProgressBar">
-            <Setter Property="Foreground" Value="#00A3D9"/>
             <Setter Property="Background" Value="#2A2B2F"/>
         </Style>
     </Application.Styles>
