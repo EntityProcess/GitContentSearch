@@ -7,19 +7,24 @@ namespace GitContentSearch
     /// Locates files in a Git repository's history using an efficient binary search approach combined with rename tracking.
     /// 
     /// Algorithm Overview:
-    /// 1. Binary Search Phase:
+    /// 1. Quick HEAD Check:
+    ///    - First checks if the file exists in the latest commit (HEAD)
+    ///    - If found, returns immediately without further searching
+    /// 
+    /// 2. Binary Search Phase (if not found in HEAD):
     ///    - Gets a list of all commit hashes in chronological order
     ///    - Uses binary search to efficiently find any occurrence of the target file
     ///    - For each checked commit, uses 'git ls-tree' to list files and find matches
     ///    - Displays the file path when found and when it changes between commits
     /// 
-    /// 2. Rename Tracking Phase:
+    /// 3. Rename Tracking Phase:
     ///    - Once the file is found in a commit, tracks its history forward to HEAD
     ///    - Uses 'git log --follow --name-status' to detect renames and deletions
     ///    - Maintains a chronological history of all paths the file has had
     ///    - Returns the most recent valid path and commit where the file exists
     /// 
     /// Performance Considerations:
+    /// - First checks HEAD to avoid expensive operations when file exists in current state
     /// - Uses binary search to quickly find first occurrence instead of scanning all commits
     /// - Only tracks renames forward from first found commit, not entire history
     /// - Caches commit times and reuses them to minimize git command calls
@@ -70,7 +75,7 @@ namespace GitContentSearch
 
         /// <summary>
         /// Uses git commands to efficiently search for a file through the repository's history.
-        /// First gets all commit hashes, then uses binary search to locate the file.
+        /// First checks if the file exists in HEAD, then falls back to binary search if needed.
         /// </summary>
         private (string? CommitHash, string? FilePath) LocateFileUsingGitCommand(string fileName, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
         {
@@ -79,7 +84,57 @@ namespace GitContentSearch
                 // Check for cancellation before starting
                 cancellationToken.ThrowIfCancellationRequested();
                 
-                // Get all commit hashes first
+                // First, check if the file exists in the latest commit (HEAD)
+                _logger.WriteLine("Checking if file exists in the latest commit (HEAD)...");
+                progress?.Report(0.05); // 5% progress for starting the HEAD check
+                
+                string? headCommitHash = null;
+                _processWrapper.StartAndProcessOutput(
+                    "rev-parse HEAD",
+                    _gitHelper.GetRepositoryPath(),
+                    line =>
+                    {
+                        if (line.Length == 40 && line.All(c => char.IsLetterOrDigit(c)))
+                        {
+                            headCommitHash = line;
+                        }
+                    },
+                    cancellationToken
+                );
+                
+                if (headCommitHash != null)
+                {
+                    string? foundPath = null;
+                    _processWrapper.StartAndProcessOutput(
+                        $"ls-tree --name-only -r HEAD",
+                        _gitHelper.GetRepositoryPath(),
+                        line =>
+                        {
+                            if (line.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                foundPath = line;
+                            }
+                        },
+                        cancellationToken
+                    );
+                    
+                    if (foundPath != null)
+                    {
+                        var commitTime = _gitHelper.GetCommitTime(headCommitHash);
+                        _logger.WriteLine($"File found in HEAD commit {headCommitHash} at {commitTime}");
+                        _logger.WriteLine($"  Path: {foundPath}");
+                        _logger.Flush();
+                        
+                        // File exists in HEAD, return immediately
+                        return (headCommitHash, foundPath);
+                    }
+                    
+                    _logger.WriteLine("File not found in HEAD, searching through repository history...");
+                }
+                
+                progress?.Report(0.1); // 10% progress after HEAD check
+                
+                // If not found in HEAD, get all commit hashes and perform binary search
                 var commits = new List<string>();
                 _processWrapper.StartAndProcessOutput(
                     "log --all --pretty=format:%H",
@@ -104,7 +159,7 @@ namespace GitContentSearch
                     return (null, null);
                 }
 
-                progress?.Report(0.1); // 10% progress after getting commits
+                progress?.Report(0.2); // 20% progress after getting commits
 
                 // Use binary search to find the file
                 var result = BinarySearchFile(commits, fileName, progress, cancellationToken);
@@ -163,8 +218,8 @@ namespace GitContentSearch
                 searchedCommits.Add(commitHash);
 
                 totalSearches++;
-                // Report progress between 10% and 95%
-                progress?.Report(0.1 + (0.85 * Math.Min(totalSearches, commits.Count) / commits.Count));
+                // Report progress between 20% and 95%
+                progress?.Report(0.2 + (0.75 * Math.Min(totalSearches, commits.Count) / commits.Count));
 
                 try
                 {
