@@ -176,6 +176,9 @@ public partial class MainWindowViewModel : ObservableObject
     private bool isSearching;
 
     [ObservableProperty]
+    private bool isLocating;
+
+    [ObservableProperty]
     private bool isLocateOperation;
 
     [ObservableProperty]
@@ -319,15 +322,16 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanLocateFile))]
     private void LocateFile()
     {
-        if (IsSearching)
+        if (IsLocating)
         {
-            // Cancel the search
-            LogOutput.Add("File location cancelled by user.");
+            // Cancel the locate operation
+            LogOutput.Add("File location operation cancelled by user.");
             _cancellationTokenSource?.Cancel();
             return;
         }
 
-        IsSearching = true;
+        IsLocating = true;
+        IsSearching = true; // Set this to true to maintain button behavior
         IsProcessingCommand = true; // Set to true when starting a command
         IsLocateOperation = true;
         ShowProgress = true;
@@ -355,6 +359,8 @@ public partial class MainWindowViewModel : ObservableObject
                         LogOutput.Add($"Error: Working directory '{WorkingDirectory}' does not exist or is invalid.");
                         ShowProgress = false;
                         IsProcessingCommand = false; // Reset when command fails
+                        IsLocating = false;
+                        IsSearching = false;
                     });
                     return;
                 }
@@ -432,10 +438,12 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    LogOutput.Add("File location cancelled by user.");
+                    // Don't add another cancellation message here, it was already added when Cancel was called
                     SearchProgress = 0;
                     ShowProgress = false;
                     IsProcessingCommand = false; // Reset when cancelled
+                    IsLocating = false;
+                    IsSearching = false;
                 });
             }
             catch (Exception ex)
@@ -450,6 +458,8 @@ public partial class MainWindowViewModel : ObservableObject
                     SearchProgress = 0;
                     ShowProgress = false;
                     IsProcessingCommand = false; // Reset on error
+                    IsLocating = false;
+                    IsSearching = false;
                 });
             }
             finally
@@ -463,6 +473,7 @@ public partial class MainWindowViewModel : ObservableObject
                 // Reset the UI state on the UI thread
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    IsLocating = false;
                     IsSearching = false;
                     IsProcessingCommand = false; // Always reset in finally block
                     // Reset IsLocateOperation when the operation is complete
@@ -480,13 +491,17 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (IsSearching)
         {
-            // Cancel the search
-            LogOutput.Add("Search cancelled by user.");
+            // Only add cancellation message if this is a search operation, not a locate operation
+            if (!IsLocating)
+            {
+                LogOutput.Add("Search operation cancelled by user.");
+            }
             _cancellationTokenSource?.Cancel();
             return;
         }
 
         IsSearching = true;
+        IsLocating = false; // Ensure IsLocating is reset when starting a search
         IsProcessingCommand = true; // Set to true when starting a command
         IsLocateOperation = false; // Reset the locate operation state when starting a search
         ShowProgress = true;
@@ -579,8 +594,9 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        LogOutput.Add("Search cancelled before it started.");
+                        // Don't add another cancellation message here
                         IsProcessingCommand = false; // Reset when cancelled
+                        IsSearching = false;
                     });
                     return;
                 }
@@ -610,10 +626,11 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    LogOutput.Add("Search cancelled by user.");
+                    // Don't add another cancellation message here, it was already added when Cancel was called
                     SearchProgress = 0;
                     ShowProgress = false;
                     IsProcessingCommand = false; // Reset when cancelled
+                    IsSearching = false;
                 });
             }
             catch (Exception ex)
@@ -625,6 +642,10 @@ public partial class MainWindowViewModel : ObservableObject
                     {
                         LogOutput.Add($"Inner Error: {ex.InnerException.Message}");
                     }
+                    SearchProgress = 0;
+                    ShowProgress = false;
+                    IsProcessingCommand = false; // Reset on error
+                    IsSearching = false;
                 });
             }
             finally
