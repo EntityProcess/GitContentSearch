@@ -340,39 +340,5 @@ namespace GitContentSearch.Tests
 			Assert.Equal("commit5", result[0].CommitHash);
 			Assert.Equal("commit1", result[4].CommitHash);
 		}
-
-		[Fact]
-		public void IsValidDate_ShouldReturnFalse_ForFutureDate()
-		{
-			// Arrange
-			var processWrapperMock = new Mock<IProcessWrapper>();
-			var gitHelper = new GitHelper(processWrapperMock.Object);
-			var futureDate = DateTime.UtcNow.AddDays(1);
-
-			// Act
-			var result = gitHelper.IsValidDate(futureDate);
-
-			// Assert
-			Assert.False(result);
-		}
-
-		[Theory]
-		[InlineData(-1)] // Yesterday
-		[InlineData(-100)] // 100 days ago
-		[InlineData(-365)] // A year ago
-		[InlineData(-3650)] // 10 years ago
-		public void IsValidDate_ShouldReturnTrue_ForAnyPastDate(int daysToAdd)
-		{
-			// Arrange
-			var processWrapperMock = new Mock<IProcessWrapper>();
-			var gitHelper = new GitHelper(processWrapperMock.Object);
-			var pastDate = DateTime.UtcNow.AddDays(daysToAdd);
-
-			// Act
-			var result = gitHelper.IsValidDate(pastDate);
-
-			// Assert
-			Assert.True(result);
-		}
 	}
 }

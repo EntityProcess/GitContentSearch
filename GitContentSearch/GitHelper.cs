@@ -393,18 +393,6 @@ namespace GitContentSearch
 			return commits;
 		}
 
-		public bool IsValidDate(DateTime date)
-		{
-			// Only check if the date is not in the future
-			if (date > DateTime.UtcNow)
-			{
-				_logger?.WriteLine($"Error: Date {date:yyyy-MM-dd} is in the future.");
-				return false;
-			}
-
-			return true;
-		}
-
 		private void EnsureRepositoryInitialized()
 		{
 			if (_repository == null)

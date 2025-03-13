@@ -17,6 +17,5 @@ namespace GitContentSearch.Interfaces
 		List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath, CancellationToken cancellationToken);
 		List<Commit> GetGitCommitsByDate(DateTime? startDate, DateTime? endDate, string filePath = "");
 		List<Commit> GetGitCommitsByDate(DateTime? startDate, DateTime? endDate, string filePath, CancellationToken cancellationToken);
-		bool IsValidDate(DateTime date);
 	}
 }

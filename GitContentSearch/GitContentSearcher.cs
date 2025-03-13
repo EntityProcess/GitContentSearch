@@ -171,21 +171,6 @@ namespace GitContentSearch
 				return;
 			}
 
-			// Validate dates if provided
-			if (startDate.HasValue && !_gitHelper.IsValidDate(startDate.Value))
-			{
-				_logger.WriteLine($"Error: Invalid start date: {startDate.Value:yyyy-MM-dd}");
-				_progress?.Report(1.0);
-				return;
-			}
-
-			if (endDate.HasValue && !_gitHelper.IsValidDate(endDate.Value))
-			{
-				_logger.WriteLine($"Error: Invalid end date: {endDate.Value:yyyy-MM-dd}");
-				_progress?.Report(1.0);
-				return;
-			}
-
 			if (startDate.HasValue && endDate.HasValue && startDate.Value > endDate.Value)
 			{
 				_logger.WriteLine($"Error: Start date ({startDate.Value:yyyy-MM-dd}) is later than end date ({endDate.Value:yyyy-MM-dd})");
