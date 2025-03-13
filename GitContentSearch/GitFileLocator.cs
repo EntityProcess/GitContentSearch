@@ -1,36 +1,35 @@
 using GitContentSearch.Interfaces;
-using System.Threading;
 
 namespace GitContentSearch
 {
-    /// <summary>
-    /// Locates files in a Git repository's history using an efficient binary search approach combined with rename tracking.
-    /// 
-    /// Algorithm Overview:
-    /// 1. Quick HEAD Check:
-    ///    - First checks if the file exists in the latest commit (HEAD)
-    ///    - If found, returns immediately without further searching
-    /// 
-    /// 2. Binary Search Phase (if not found in HEAD):
-    ///    - Gets a list of all commit hashes in chronological order
-    ///    - Uses binary search to efficiently find any occurrence of the target file
-    ///    - For each checked commit, uses 'git ls-tree' to list files and find matches
-    ///    - Displays the file path when found and when it changes between commits
-    /// 
-    /// 3. Rename Tracking Phase:
-    ///    - Once the file is found in a commit, tracks its history forward to HEAD
-    ///    - Uses 'git log --follow --name-status' to detect renames and deletions
-    ///    - Maintains a chronological history of all paths the file has had
-    ///    - Returns the most recent valid path and commit where the file exists
-    /// 
-    /// Performance Considerations:
-    /// - First checks HEAD to avoid expensive operations when file exists in current state
-    /// - Uses binary search to quickly find first occurrence instead of scanning all commits
-    /// - Only tracks renames forward from first found commit, not entire history
-    /// - Caches commit times and reuses them to minimize git command calls
-    /// - Handles large repositories efficiently by avoiding full history traversal
-    /// </summary>
-    public class GitFileLocator : IGitFileLocator
+	/// <summary>
+	/// Locates files in a Git repository's history using an efficient binary search approach combined with rename tracking.
+	/// 
+	/// Algorithm Overview:
+	/// 1. Quick HEAD Check:
+	///    - First checks if the file exists in the latest commit (HEAD)
+	///    - If found, returns immediately without further searching
+	/// 
+	/// 2. Binary Search Phase (if not found in HEAD):
+	///    - Gets a list of all commit hashes in chronological order
+	///    - Uses binary search to efficiently find any occurrence of the target file
+	///    - For each checked commit, uses 'git ls-tree' to list files and find matches
+	///    - Displays the file path when found and when it changes between commits
+	/// 
+	/// 3. Rename Tracking Phase:
+	///    - Once the file is found in a commit, tracks its history forward to HEAD
+	///    - Uses 'git log --follow --name-status' to detect renames and deletions
+	///    - Maintains a chronological history of all paths the file has had
+	///    - Returns the most recent valid path and commit where the file exists
+	/// 
+	/// Performance Considerations:
+	/// - First checks HEAD to avoid expensive operations when file exists in current state
+	/// - Uses binary search to quickly find first occurrence instead of scanning all commits
+	/// - Only tracks renames forward from first found commit, not entire history
+	/// - Caches commit times and reuses them to minimize git command calls
+	/// - Handles large repositories efficiently by avoiding full history traversal
+	/// </summary>
+	public class GitFileLocator : IGitFileLocator
     {
         private readonly IGitHelper _gitHelper;
         private readonly ISearchLogger _logger;
@@ -110,7 +109,7 @@ namespace GitContentSearch
                         _gitHelper.GetRepositoryPath(),
                         line =>
                         {
-                            if (line.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                            if (Path.GetFileName(line).Equals(fileName, StringComparison.OrdinalIgnoreCase))
                             {
                                 foundPath = line;
                             }
@@ -229,7 +228,7 @@ namespace GitContentSearch
                         _gitHelper.GetRepositoryPath(),
                         line =>
                         {
-                            if (line.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                            if (Path.GetFileName(line).Equals(fileName, StringComparison.OrdinalIgnoreCase))
                             {
                                 foundPath = line;
                             }
@@ -318,7 +317,7 @@ namespace GitContentSearch
                             {
                                 var oldPath = parts[1];
                                 var newPath = parts[2];
-                                if (oldPath == currentFilePath)
+                                if (Path.GetFileName(oldPath).Equals(currentFilePath, StringComparison.OrdinalIgnoreCase))
                                 {
                                     var commitTime = _gitHelper.GetCommitTime(currentCommitHash);
                                     _logger.WriteLine($"File renamed in commit {currentCommitHash} at {commitTime}:");
@@ -331,7 +330,7 @@ namespace GitContentSearch
                                 }
                             }
                         }
-                        else if (line.StartsWith("D") && line.EndsWith(currentFilePath, StringComparison.OrdinalIgnoreCase))
+                        else if (line.StartsWith("D") && Path.GetFileName(line).Equals(currentFilePath, StringComparison.OrdinalIgnoreCase))
                         {
                             var commitTime = _gitHelper.GetCommitTime(currentCommitHash);
                             _logger.WriteLine($"File was deleted in commit {currentCommitHash} at {commitTime}");
