@@ -56,12 +56,14 @@
             <CalendarDatePicker Grid.Column="1" 
                               SelectedDate="{Binding StartDate}" 
                               Margin="8,0"
+                              Padding="8,0"
                               Watermark="YYYY-MM-DD"
                               HorizontalAlignment="Stretch"/>
             <TextBlock Grid.Column="2" Text="End Date" VerticalAlignment="Center" Margin="16,0" FontWeight="Medium"/>
             <CalendarDatePicker Grid.Column="3" 
                               SelectedDate="{Binding EndDate}" 
                               Margin="8,0"
+                              Padding="8,0"
                               Watermark="YYYY-MM-DD"
                               HorizontalAlignment="Stretch"/>
         </Grid>
