@@ -117,10 +117,10 @@ public partial class MainWindowViewModel : ObservableObject
     private string searchString = string.Empty;
 
     [ObservableProperty]
-    private string earliestCommit = string.Empty;
+    private DateTime? startDate;
 
     [ObservableProperty]
-    private string latestCommit = string.Empty;
+    private DateTime? endDate;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSearchCommand))]
@@ -191,8 +191,8 @@ public partial class MainWindowViewModel : ObservableObject
         {
             FilePath = settings.FilePath;
             SearchString = settings.SearchString;
-            EarliestCommit = settings.EarliestCommit;
-            LatestCommit = settings.LatestCommit;
+            StartDate = settings.StartDate?.UtcDateTime;
+            EndDate = settings.EndDate?.UtcDateTime;
             WorkingDirectory = settings.WorkingDirectory;
             LogDirectory = settings.LogDirectory;
             FollowHistory = settings.FollowHistory;
@@ -206,8 +206,8 @@ public partial class MainWindowViewModel : ObservableObject
         {
             FilePath = FilePath,
             SearchString = SearchString,
-            EarliestCommit = EarliestCommit,
-            LatestCommit = LatestCommit,
+            StartDate = StartDate.HasValue ? new DateTimeOffset(StartDate.Value) : null,
+            EndDate = EndDate.HasValue ? new DateTimeOffset(EndDate.Value) : null,
             WorkingDirectory = WorkingDirectory,
             LogDirectory = LogDirectory,
             FollowHistory = FollowHistory
@@ -550,8 +550,8 @@ public partial class MainWindowViewModel : ObservableObject
                 bool followHistory = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FollowHistory);
                 string filePath = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FilePath);
                 string searchString = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SearchString);
-                string earliestCommit = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => EarliestCommit);
-                string latestCommit = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LatestCommit);
+                var startDate = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => StartDate);
+                var endDate = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => EndDate);
 
                 // Create a log file
                 string logFileName = $"search_{Path.GetFileName(filePath)}_{DateTime.Now:yyyyMMdd_HHmmss}.log";
@@ -608,11 +608,11 @@ public partial class MainWindowViewModel : ObservableObject
                 });
 
                 // Run the search operation
-                gitContentSearcher.SearchContent(
+                gitContentSearcher.SearchContentByDate(
                     filePath,
                     searchString,
-                    earliestCommit,
-                    latestCommit,
+                    startDate,
+                    endDate,
                     progress,
                     cancellationToken);
 
