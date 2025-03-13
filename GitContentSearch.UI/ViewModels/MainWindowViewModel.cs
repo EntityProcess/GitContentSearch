@@ -403,7 +403,7 @@ public partial class MainWindowViewModel : ObservableObject
                 var gitLocator = new GitFileLocator(gitHelper, searchLogger, processWrapper);
                 
                 // Log the header
-                searchLogger.LogHeader("locate", workingDir, filePath);
+                searchLogger.LogHeader("locate", workingDir, filePath, logFilePath);
 
                 var progress = new Progress<double>(value =>
                 {
