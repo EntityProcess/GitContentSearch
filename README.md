@@ -8,7 +8,7 @@ The app identifies the commit where the search string appears, using an optimize
 
 > **Note**: Currently, the application has been primarily tested on Windows and may not work properly on Linux/MacOS. Cross-platform support is planned for future releases.
 
-![GitContentSearch UI Main Window](images/ui/main-window.png)
+![GitContentSearch UI Main Window](docs/images/ui/main-window.png)
 
 ## Features
 
