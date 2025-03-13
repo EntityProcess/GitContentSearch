@@ -476,8 +476,7 @@ public partial class MainWindowViewModel : ObservableObject
                     IsLocating = false;
                     IsSearching = false;
                     IsProcessingCommand = false; // Always reset in finally block
-                    // Reset IsLocateOperation when the operation is complete
-                    IsLocateOperation = false;
+                    // Keep IsLocateOperation true until a new operation starts
                 });
                 
                 _cancellationTokenSource?.Dispose();
@@ -503,7 +502,7 @@ public partial class MainWindowViewModel : ObservableObject
         IsSearching = true;
         IsLocating = false; // Ensure IsLocating is reset when starting a search
         IsProcessingCommand = true; // Set to true when starting a command
-        IsLocateOperation = false; // Reset the locate operation state when starting a search
+        IsLocateOperation = false; // Reset the locate operation state when starting a new search
         ShowProgress = true;
         SearchProgress = 0;
         LogOutput.Clear();
