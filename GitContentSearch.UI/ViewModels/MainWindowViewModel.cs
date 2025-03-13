@@ -576,7 +576,7 @@ public partial class MainWindowViewModel : ObservableObject
                 _fileManager = new FileManager(logAndTempFileDirectory);
                 
                 // Log the header
-                searchLogger.LogHeader("search", workingDir, filePath);
+                searchLogger.LogHeader("search", workingDir, filePath, logAndTempFileDirectory);
 
                 var gitContentSearcher = new GitContentSearcher(_gitHelper, _fileSearcher, _fileManager, searchLogger);
                 
