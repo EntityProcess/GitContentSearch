@@ -1,3 +1,7 @@
+---
+layout: home
+title: GitContentSearch
+---
 # GitContentSearch: Find When a String Was Added and Removed in Git History (Excel & Text)
 
 Welcome to **GitContentSearch**, a free, powerful tool designed to pinpoint the exact Git commits where a specific string was *first introduced* and *last removed* from your files. It works with both legacy Excel files (.xls, .xlsx) and text-based files (.txt, .sql, .cs, etc.), making it an indispensable tool for understanding the history of your code and data. GitContentSearch goes beyond `git blame`, providing a fast, binary-search-driven way to find the origin and deletion of any string within your repository's history.
