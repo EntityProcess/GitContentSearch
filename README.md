@@ -16,7 +16,7 @@ The app identifies the commit where the search string appears, using an optimize
 - **Optimized Search**: Quickly identifies the commit where the search string first appears and last disappears.
 - **Searches Across Multiple File Types**: Search in Excel files (.xls, .xlsx) and text files (.txt, .sql, .cs, etc.).
 - **Log File**: Keeps track of all checked commits and results, allowing you to continue the search later.
-- **Commit Range**: Specify an earliest and latest commit to limit the search scope.
+- **Date Range**: Specify start and end dates to limit the search scope (with fallback to commit range in CLI).
 - **Follow File History**: Use the `--follow` option (CLI) or toggle in UI to follow file renames and history across commits.
 
 ## Download Windows Binaries
@@ -68,7 +68,7 @@ For easy access, you can create a shortcut to `GitContentSearch.UI.exe` on your 
 1. Launch `GitContentSearch.UI.exe`
 2. Configure your Git repository settings
 3. Enter the file path and search string
-4. Optionally set commit range and other search options
+4. Set the date range using the date picker or enter dates manually (format: YYYY-MM-DD)
 5. Click Search to begin
 
 ### CLI Version
@@ -84,15 +84,17 @@ cd /path/to/your/git/repository
 **2. Run the tool**:
 
 ```bash
-GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]
+GitContentSearch.exe <remote-file-path> <search-string> [--start-date=<date>] [--end-date=<date>] [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]
 ```
 
 ### CLI Arguments
 
 * `<file-path>`: The path to the Content file within the Git repository.
 * `<search-string>`: The string you want to search for in the Content file.
-* `--earliest-commit=<commit>`: (Optional) The earliest commit to begin the search.
-* `--latest-commit=<commit>`: (Optional) The latest commit to end the search.
+* `--start-date=<date>`: (Optional) The start date for the search (format: YYYY-MM-DD).
+* `--end-date=<date>`: (Optional) The end date for the search (format: YYYY-MM-DD).
+* `--earliest-commit=<commit>`: (Optional) The earliest commit to begin the search (takes precedence over date range if both are specified).
+* `--latest-commit=<commit>`: (Optional) The latest commit to end the search (takes precedence over date range if both are specified).
 * `--working-directory=<path>`: (Optional) The directory where Git commands should be executed. Defaults to the user's temp directory if not provided.
 * `--log-directory=<path>`: (Optional) The directory where the log file and temporary files will be stored. Defaults to the user's temp directory if not provided.
 * `--follow`: (Optional) Follow file renames and history across commits.
@@ -100,12 +102,12 @@ GitContentSearch.exe <remote-file-path> <search-string> [--earliest-commit=<comm
 ### CLI Example
 
 ```bash
-GitContentSearch.exe "path/to/your/file.xlsx" "SearchString" --earliest-commit=abc123 --latest-commit=def456 --working-directory="/your/git/repo" --log-directory="/your/log/directory" --follow
+GitContentSearch.exe "path/to/your/file.xlsx" "SearchString" --start-date="2023-01-01" --end-date="2023-12-31" --working-directory="/your/git/repo" --log-directory="/your/log/directory" --follow
 ```
 
-This will search for the string "SearchString" within the specified commit range, using the specified working directory for Git operations and storing logs and temporary files in the specified log directory.
+This will search for the string "SearchString" within the specified date range, using the specified working directory for Git operations and storing logs and temporary files in the specified log directory.
 
-Note: The file is the remote path (e.g. `path/to/your/file.xlsx`), not the local path (e.g. `c:/repo/path/to/your/file.xlsx`).
+Note: The file is the remote path (e.g. `path/to/your/file.xlsx`), not the local path (e.g. `c:/repo/path/to/your/file.xlsx`). All dates are handled in UTC timezone.
 
 ## Output
 
