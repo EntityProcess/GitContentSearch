@@ -298,5 +298,81 @@ namespace GitContentSearch.Tests
 			// Assert
 			Assert.Equal(expectedCommand.Trim(), capturedCommand?.Trim());
 		}
+
+		[Fact]
+		public void GetGitCommitsByDate_ShouldReturnEmptyList_OnGitFailure()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+
+			var processResult = new ProcessResult(string.Empty, "Error occurred", 1);
+			processWrapperMock.Setup(pw => pw.Start(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
+
+			var gitHelper = new GitHelper(processWrapperMock.Object);
+
+			// Act
+			var result = gitHelper.GetGitCommitsByDate(DateTime.UtcNow.AddDays(-7), DateTime.UtcNow);
+
+			// Assert
+			Assert.NotNull(result);
+			Assert.Empty(result);
+		}
+
+		[Fact]
+		public void GetGitCommitsByDate_ShouldReturnCommits_WhenDatesAreValid()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+
+			var gitLogOutput = "commit5\ncommit4\ncommit3\ncommit2\ncommit1";
+			var processResult = new ProcessResult(gitLogOutput, string.Empty, 0);
+			processWrapperMock.Setup(pw => pw.Start(It.Is<string>(x => x.Contains("--since") && x.Contains("--until")), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+				.Returns(processResult);
+
+			var gitHelper = new GitHelper(processWrapperMock.Object);
+
+			// Act
+			var result = gitHelper.GetGitCommitsByDate(DateTime.UtcNow.AddDays(-7), DateTime.UtcNow);
+
+			// Assert
+			Assert.Equal(5, result.Count);
+			Assert.Equal("commit5", result[0].CommitHash);
+			Assert.Equal("commit1", result[4].CommitHash);
+		}
+
+		[Fact]
+		public void IsValidDate_ShouldReturnFalse_ForFutureDate()
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitHelper = new GitHelper(processWrapperMock.Object);
+			var futureDate = DateTime.UtcNow.AddDays(1);
+
+			// Act
+			var result = gitHelper.IsValidDate(futureDate);
+
+			// Assert
+			Assert.False(result);
+		}
+
+		[Theory]
+		[InlineData(-1)] // Yesterday
+		[InlineData(-100)] // 100 days ago
+		[InlineData(-365)] // A year ago
+		[InlineData(-3650)] // 10 years ago
+		public void IsValidDate_ShouldReturnTrue_ForAnyPastDate(int daysToAdd)
+		{
+			// Arrange
+			var processWrapperMock = new Mock<IProcessWrapper>();
+			var gitHelper = new GitHelper(processWrapperMock.Object);
+			var pastDate = DateTime.UtcNow.AddDays(daysToAdd);
+
+			// Act
+			var result = gitHelper.IsValidDate(pastDate);
+
+			// Assert
+			Assert.True(result);
+		}
 	}
 }

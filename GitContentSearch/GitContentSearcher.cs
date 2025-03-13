@@ -158,6 +158,81 @@ namespace GitContentSearch
 			_progress?.Report(1.0);
 		}
 
+		public void SearchContentByDate(string filePath, string searchString, DateTime? startDate = null, DateTime? endDate = null, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+		{
+			_progress = progress;
+			_currentProgress = 0;
+			_progress?.Report(0.05); // Initial 5% progress to show activity
+
+			if (!_gitHelper.IsValidRepository())
+			{
+				_logger.WriteLine("Error: Not a valid git repository.");
+				_progress?.Report(1.0);
+				return;
+			}
+
+			// Validate dates if provided
+			if (startDate.HasValue && !_gitHelper.IsValidDate(startDate.Value))
+			{
+				_logger.WriteLine($"Error: Invalid start date: {startDate.Value:yyyy-MM-dd}");
+				_progress?.Report(1.0);
+				return;
+			}
+
+			if (endDate.HasValue && !_gitHelper.IsValidDate(endDate.Value))
+			{
+				_logger.WriteLine($"Error: Invalid end date: {endDate.Value:yyyy-MM-dd}");
+				_progress?.Report(1.0);
+				return;
+			}
+
+			if (startDate.HasValue && endDate.HasValue && startDate.Value > endDate.Value)
+			{
+				_logger.WriteLine($"Error: Start date ({startDate.Value:yyyy-MM-dd}) is later than end date ({endDate.Value:yyyy-MM-dd})");
+				_progress?.Report(1.0);
+				return;
+			}
+
+			if (!FileExistsInCurrentCommit(filePath, cancellationToken))
+			{
+				_logger.WriteLine($"Warning: The file '{filePath}' does not exist in the current commit.");
+				_logger.WriteLine("The search will not include commits where the file path was not found.");
+				_logger.WriteLine(""); // Empty line
+			}
+
+			// Get commits for the specified date range
+			var commits = _gitHelper.GetGitCommitsByDate(startDate, endDate, filePath, cancellationToken);
+			commits.Reverse(); // Reverse to get chronological order
+
+			if (commits.Count == 0)
+			{
+				_progress?.Report(1.0);
+				return;
+			}
+
+			_progress?.Report(0.25); // Commits retrieved
+
+			// Calculate total possible commits to search
+			int totalPossibleSearches = commits.Count;
+			int totalSearchesDone = 0;
+
+			// Check for cancellation before starting search
+			cancellationToken.ThrowIfCancellationRequested();
+
+			// Search the most recent match first with FindLastMatchIndex
+			int lastMatchIndex = FindLastMatchIndex(commits, filePath, searchString, 0, ref totalSearchesDone, totalPossibleSearches, cancellationToken);
+
+			// Check for cancellation before continuing
+			cancellationToken.ThrowIfCancellationRequested();
+
+			// Pass lastMatchIndex to FindFirstMatchIndex to optimize the search range
+			int firstMatchIndex = FindFirstMatchIndex(commits, filePath, searchString, lastMatchIndex, ref totalSearchesDone, totalPossibleSearches, cancellationToken);
+
+			LogResults(firstMatchIndex, lastMatchIndex, commits, searchString);
+			
+			_progress?.Report(1.0);
+		}
+
 		private int FindFirstMatchIndex(List<Commit> commits, string filePath, string searchString, int lastMatchIndex, ref int totalSearchesDone, int totalPossibleSearches, CancellationToken cancellationToken)
 		{
 			int left = 0;

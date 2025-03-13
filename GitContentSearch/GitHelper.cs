@@ -359,6 +359,52 @@ namespace GitContentSearch
 				.ToList();
 		}
 
+		public List<Commit> GetGitCommitsByDate(DateTime? startDate, DateTime? endDate, string filePath = "")
+		{
+			return GetGitCommitsByDate(startDate, endDate, filePath, CancellationToken.None);
+		}
+
+		public List<Commit> GetGitCommitsByDate(DateTime? startDate, DateTime? endDate, string filePath, CancellationToken cancellationToken)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+
+			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
+			var startDateArg = startDate.HasValue ? $"--since=\"{startDate.Value:yyyy-MM-dd}\"" : string.Empty;
+			var endDateArg = endDate.HasValue ? $"--until=\"{endDate.Value:yyyy-MM-dd}\"" : string.Empty;
+			var arguments = $"log --pretty=format:%H {startDateArg} {endDateArg} {filePathArg}".Trim();
+
+			var result = RunGitCommand(arguments, null, cancellationToken);
+			if (result == null || result.ExitCode != 0)
+			{
+				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+				return new List<Commit>();
+			}
+
+			var commits = result.StandardOutput
+							 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+							 .Select(x => new Commit(x, filePath))
+							 .ToList();
+
+			if (!commits.Any())
+			{
+				_logger?.WriteLine($"No commits found between {startDate?.ToString("yyyy-MM-dd") ?? "repository start"} and {endDate?.ToString("yyyy-MM-dd") ?? "repository end"}");
+			}
+
+			return commits;
+		}
+
+		public bool IsValidDate(DateTime date)
+		{
+			// Only check if the date is not in the future
+			if (date > DateTime.UtcNow)
+			{
+				_logger?.WriteLine($"Error: Date {date:yyyy-MM-dd} is in the future.");
+				return false;
+			}
+
+			return true;
+		}
+
 		private void EnsureRepositoryInitialized()
 		{
 			if (_repository == null)

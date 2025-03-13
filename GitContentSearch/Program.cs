@@ -28,7 +28,8 @@ namespace GitContentSearch
 			if (args.Length == 0)
 			{
 				Console.WriteLine("Usage:");
-				Console.WriteLine("  Search: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
+				Console.WriteLine("  Search by commit: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
+				Console.WriteLine("  Search by date: <program> <file-path> <search-string> [--start-date=<YYYY-MM-DD>] [--end-date=<YYYY-MM-DD>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
 				Console.WriteLine("  Locate: <program> --locate-only <file-name>");
 				return;
 			}
@@ -63,7 +64,9 @@ namespace GitContentSearch
 			// Original search functionality
 			if (args.Length < 2)
 			{
-				Console.WriteLine("Usage for search: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
+				Console.WriteLine("Usage for search:");
+				Console.WriteLine("  By commit: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
+				Console.WriteLine("  By date: <program> <file-path> <search-string> [--start-date=<YYYY-MM-DD>] [--end-date=<YYYY-MM-DD>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
 				return;
 			}
 
@@ -71,6 +74,8 @@ namespace GitContentSearch
 			string searchString = args[1];
 			string earliestCommit = "";
 			string latestCommit = "";
+			DateTime? startDate = null;
+			DateTime? endDate = null;
 			bool follow = false;
 			string? workingDirectory = null;
 			string? logDirectory = null;
@@ -85,6 +90,32 @@ namespace GitContentSearch
 				else if (arg.StartsWith("--latest-commit="))
 				{
 					latestCommit = arg.Replace("--latest-commit=", "");
+				}
+				else if (arg.StartsWith("--start-date="))
+				{
+					var dateStr = arg.Replace("--start-date=", "");
+					if (DateTime.TryParse(dateStr, out DateTime parsedDate))
+					{
+						startDate = parsedDate.Date; // Use only the date part
+					}
+					else
+					{
+						Console.WriteLine($"Error: Invalid start date format. Please use YYYY-MM-DD format. Got: {dateStr}");
+						return;
+					}
+				}
+				else if (arg.StartsWith("--end-date="))
+				{
+					var dateStr = arg.Replace("--end-date=", "");
+					if (DateTime.TryParse(dateStr, out DateTime parsedDate))
+					{
+						endDate = parsedDate.Date; // Use only the date part
+					}
+					else
+					{
+						Console.WriteLine($"Error: Invalid end date format. Please use YYYY-MM-DD format. Got: {dateStr}");
+						return;
+					}
 				}
 				else if (arg.StartsWith("--working-directory="))
 				{
@@ -113,7 +144,19 @@ namespace GitContentSearch
 				var fileManager = new FileManager(tempDir);
 				var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logger);
 
-				gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
+				// If both commit-based and date-based options are provided, prioritize commit-based
+				if (!string.IsNullOrEmpty(earliestCommit) || !string.IsNullOrEmpty(latestCommit))
+				{
+					if (startDate.HasValue || endDate.HasValue)
+					{
+						logger.WriteLine("Warning: Both commit-based and date-based options provided. Using commit-based options.");
+					}
+					gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
+				}
+				else
+				{
+					gitContentSearcher.SearchContentByDate(filePath, searchString, startDate, endDate);
+				}
 
 				logger.LogFooter();
 			}
