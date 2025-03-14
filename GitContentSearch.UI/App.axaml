@@ -165,5 +165,52 @@
         <Style Selector="ProgressBar">
             <Setter Property="Background" Value="#2A2B2F"/>
         </Style>
+
+        <!-- CalendarDatePicker Styles -->
+        <Style Selector="CalendarDatePicker">
+            <Setter Property="Background" Value="#2A2B2F"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#3A3B3F"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+
+        <Style Selector="CalendarDatePicker:focus">
+            <Setter Property="Background" Value="#1A1B1F"/>
+            <Setter Property="BorderBrush" Value="#00A3D9"/>
+        </Style>
+
+        <Style Selector="CalendarDatePicker:pointerover">
+            <Setter Property="Background" Value="#3A3B3F"/>
+        </Style>
+
+        <Style Selector="CalendarDatePicker:focus:pointerover">
+            <Setter Property="Background" Value="#1A1B1F"/>
+        </Style>
+
+        <Style Selector="CalendarDatePicker /template/ Button#PART_Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent"
+                            BorderThickness="0"
+                            CornerRadius="4"
+                            Width="32"
+                            Height="32">
+                        <PathIcon Data="M9,10H7V12H9V10M13,10H11V12H13V10M17,10H15V12H17V10M19,3H18V1H16V3H8V1H6V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M19,19H5V8H19V19Z"
+                                 Width="16"
+                                 Height="16"
+                                 Foreground="#CCCCCC"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="CalendarDatePicker:focus /template/ Button#PART_Button /template/ PathIcon">
+            <Setter Property="Foreground" Value="#00A3D9"/>
+        </Style>
     </Application.Styles>
 </Application> 
