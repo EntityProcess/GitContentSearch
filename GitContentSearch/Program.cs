@@ -145,12 +145,13 @@ namespace GitContentSearch
 				var gitContentSearcher = new GitContentSearcher(gitHelper, fileSearcher, fileManager, logger);
 
 				// If both commit-based and date-based options are provided, prioritize commit-based
-				if (!string.IsNullOrEmpty(earliestCommit) || !string.IsNullOrEmpty(latestCommit))
+				if (!startDate.HasValue && !endDate.HasValue)
 				{
-					if (startDate.HasValue || endDate.HasValue)
+					if (!string.IsNullOrEmpty(earliestCommit) || !string.IsNullOrEmpty(latestCommit))
 					{
 						logger.WriteLine("Warning: Both commit-based and date-based options provided. Using commit-based options.");
 					}
+						
 					gitContentSearcher.SearchContent(filePath, searchString, earliestCommit, latestCommit);
 				}
 				else

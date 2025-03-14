@@ -185,12 +185,13 @@ namespace GitContentSearch
 				_logger.WriteLine(""); // Empty line
 			}
 
-			// Get commits for the specified date range
+			// Get commits for the specified date range, following renames
 			var commits = _gitHelper.GetGitCommitsByDate(startDate, endDate, filePath, cancellationToken);
 			commits.Reverse(); // Reverse to get chronological order
 
 			if (commits.Count == 0)
 			{
+				_logger.WriteLine("No commits found containing the specified file within the given date range.");
 				_progress?.Report(1.0);
 				return;
 			}

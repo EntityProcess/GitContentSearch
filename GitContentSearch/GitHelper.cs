@@ -143,15 +143,19 @@ namespace GitContentSearch
 				return new List<Commit>();
 			}
 
-			var commitLines = result.StandardOutput
-							 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-							 .ToArray();
+			return ParseGitLogWithNameStatus(result.StandardOutput, filePath, cancellationToken);
+		}
+
+		private List<Commit> ParseGitLogWithNameStatus(string gitLogOutput, string originalFilePath, CancellationToken cancellationToken)
+		{
+			var commitLines = gitLogOutput.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+								 .ToArray();
 
 			var commits = new List<Commit>();
 			var processedCommits = new HashSet<string>(); // Track processed commits to avoid duplicates
 			string? currentCommitHash = null;
 			string? currentFilePath = null;
-			string? previousFilePath = filePath;
+			string? previousFilePath = originalFilePath;
 
 			foreach (var line in commitLines)
 			{
@@ -371,26 +375,43 @@ namespace GitContentSearch
 			var filePathArg = string.IsNullOrEmpty(filePath) ? string.Empty : $"-- {FormatFilePathForGit(filePath)}";
 			var startDateArg = startDate.HasValue ? $"--since=\"{startDate.Value:yyyy-MM-dd}\"" : string.Empty;
 			var endDateArg = endDate.HasValue ? $"--until=\"{endDate.Value:yyyy-MM-dd}\"" : string.Empty;
-			var arguments = $"log --pretty=format:%H {startDateArg} {endDateArg} {filePathArg}".Trim();
 
-			var result = RunGitCommand(arguments, null, cancellationToken);
-			if (result == null || result.ExitCode != 0)
+			if (_follow && !string.IsNullOrEmpty(filePath))
 			{
-				_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
-				return new List<Commit>();
+				// When following file renames, we need to use --name-status to track the file path changes
+				var arguments = $"log --name-status --pretty=format:%H --follow {startDateArg} {endDateArg} {filePathArg}".Trim();
+				var result = RunGitCommand(arguments, null, cancellationToken);
+				if (result == null || result.ExitCode != 0)
+				{
+					_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+					return new List<Commit>();
+				}
+
+				return ParseGitLogWithNameStatus(result.StandardOutput, filePath, cancellationToken);
 			}
-
-			var commits = result.StandardOutput
-							 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-							 .Select(x => new Commit(x, filePath))
-							 .ToList();
-
-			if (!commits.Any())
+			else
 			{
-				_logger?.WriteLine($"No commits found between {startDate?.ToString("yyyy-MM-dd") ?? "repository start"} and {endDate?.ToString("yyyy-MM-dd") ?? "repository end"}");
-			}
+				// When not following renames, use the simpler log command
+				var arguments = $"log --pretty=format:%H {startDateArg} {endDateArg} {filePathArg}".Trim();
+				var result = RunGitCommand(arguments, null, cancellationToken);
+				if (result == null || result.ExitCode != 0)
+				{
+					_logger?.WriteLine($"Error retrieving git commits: {result?.StandardError}");
+					return new List<Commit>();
+				}
 
-			return commits;
+				var commits = result.StandardOutput
+								 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+								 .Select(x => new Commit(x, filePath))
+								 .ToList();
+
+				if (!commits.Any())
+				{
+					_logger?.WriteLine($"No commits found between {startDate?.ToString("yyyy-MM-dd") ?? "repository start"} and {endDate?.ToString("yyyy-MM-dd") ?? "repository end"}");
+				}
+
+				return commits;
+			}
 		}
 
 		private void EnsureRepositoryInitialized()
