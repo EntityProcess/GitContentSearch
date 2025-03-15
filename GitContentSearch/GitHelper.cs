@@ -309,7 +309,9 @@ namespace GitContentSearch
 
 				var tree = commit.Tree;
 				var treeEntry = tree[filePath];
-				return treeEntry != null;
+				
+				// Return false if the path is a directory (Tree) or doesn't exist
+				return treeEntry != null && treeEntry.TargetType == TreeEntryTargetType.Blob;
 			}
 			catch
 			{
