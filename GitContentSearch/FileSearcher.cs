@@ -1,11 +1,10 @@
-﻿using NPOI.HPSF;
-using NPOI.HSSF.UserModel; // For .xls
+﻿using NPOI.HSSF.UserModel; // For .xls
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel; // For .xlsx
 
 namespace GitContentSearch
 {
-    public class FileSearcher : IFileSearcher
+	public class FileSearcher : IFileSearcher
 	{
 		public bool SearchInFile(string fileName, string searchString)
 		{
@@ -37,7 +36,7 @@ namespace GitContentSearch
 			{
 				stream.Position = 0;
 				using var reader = new StreamReader(stream);
-				string line;
+				string? line;
 				while ((line = reader.ReadLine()) != null)
 				{
 					if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
@@ -46,7 +45,7 @@ namespace GitContentSearch
 					}
 				}
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
 				return false;
 			}
