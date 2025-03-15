@@ -37,9 +37,7 @@ namespace GitContentSearch
 					return false;
 				}
 
-				// Use LibGit2Sharp to check file existence
-				var content = _gitHelper.GetFileContentAtCommit("HEAD", filePath, cancellationToken);
-				return true;
+				return _gitHelper.FileExistsAtCommit("HEAD", filePath, cancellationToken);
 			}
 			catch (Exception)
 			{
@@ -235,9 +233,10 @@ namespace GitContentSearch
 
 				try
 				{
-					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken);
-					bool isBinary = !_fileSearcher.IsTextStream(stream);
-					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
+					using (var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken))
+					{
+						found = _fileSearcher.SearchInStream(stream, searchString, Path.GetExtension(commit.FilePath));
+					}
 
 					string commitTime = _gitHelper.GetCommitTime(commit.CommitHash);
 					_logger.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
@@ -283,9 +282,10 @@ namespace GitContentSearch
 
 				try
 				{
-					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken);
-					bool isBinary = !_fileSearcher.IsTextStream(stream);
-					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
+					using (var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken))
+					{
+						found = _fileSearcher.SearchInStream(stream, searchString, Path.GetExtension(commit.FilePath));
+					}
 
 					string commitTime = _gitHelper.GetCommitTime(commit.CommitHash);
 					_logger.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");
@@ -338,9 +338,10 @@ namespace GitContentSearch
 
 				try
 				{
-					using var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken);
-					bool isBinary = !_fileSearcher.IsTextStream(stream);
-					found = _fileSearcher.SearchInStream(stream, searchString, isBinary);
+					using (var stream = _gitHelper.GetFileContentAtCommit(commit.CommitHash, commit.FilePath, cancellationToken))
+					{
+						found = _fileSearcher.SearchInStream(stream, searchString, Path.GetExtension(commit.FilePath));
+					}
 
 					string commitTime = _gitHelper.GetCommitTime(commit.CommitHash);
 					_logger.WriteLine($"Checked commit: {commit.CommitHash} at {commitTime}, found: {found}");

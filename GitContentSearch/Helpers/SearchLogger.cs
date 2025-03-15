@@ -1,6 +1,7 @@
 using GitContentSearch.Interfaces;
 using System;
 using System.IO;
+using System.Reflection;
 
 namespace GitContentSearch.Helpers
 {
@@ -28,9 +29,10 @@ namespace GitContentSearch.Helpers
 
         public void LogHeader(string operation, string workingDirectory, string targetFile, string? tempDirectory = null)
         {
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
             var divider = new string('=', 50);
             _writer.WriteLine(divider);
-            _writer.WriteLine($"GitContentSearch {operation} started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            _writer.WriteLine($"GitContentSearch v{version} {operation} started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             _writer.WriteLine($"Working Directory (Git Repo): {workingDirectory}");
             _writer.WriteLine($"File to {operation.ToLower()}: {targetFile}");
             
@@ -42,7 +44,7 @@ namespace GitContentSearch.Helpers
             
             // Trigger LogAdded event for each line
             LogAdded?.Invoke(this, divider);
-            LogAdded?.Invoke(this, $"GitContentSearch {operation} started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            LogAdded?.Invoke(this, $"GitContentSearch v{version} {operation} started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             LogAdded?.Invoke(this, $"Working Directory (Git Repo): {workingDirectory}");
             LogAdded?.Invoke(this, $"File to {operation.ToLower()}: {targetFile}");
             LogAdded?.Invoke(this, $"Logs and temporary files will be created in: {tempDir}");

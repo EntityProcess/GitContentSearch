@@ -1,6 +1,7 @@
 ﻿using GitContentSearch.Helpers;
 using GitContentSearch.Interfaces;
 using System.IO;
+using System.Reflection;
 
 namespace GitContentSearch
 {
@@ -28,9 +29,18 @@ namespace GitContentSearch
 			if (args.Length == 0)
 			{
 				Console.WriteLine("Usage:");
+				Console.WriteLine("  Version info: <program> --version");
 				Console.WriteLine("  Search by commit: <program> <file-path> <search-string> [--earliest-commit=<commit>] [--latest-commit=<commit>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
 				Console.WriteLine("  Search by date: <program> <file-path> <search-string> [--start-date=<YYYY-MM-DD>] [--end-date=<YYYY-MM-DD>] [--working-directory=<path>] [--log-directory=<path>] [--follow]");
 				Console.WriteLine("  Locate: <program> --locate-only <file-name>");
+				return;
+			}
+
+			// Handle version request
+			if (args[0] == "--version")
+			{
+				var version = Assembly.GetExecutingAssembly().GetName().Version;
+				Console.WriteLine($"GitContentSearch version {version}");
 				return;
 			}
 

@@ -1,96 +1,74 @@
-﻿using NPOI.HSSF.UserModel; // For .xls
+﻿using NPOI.HPSF;
+using NPOI.HSSF.UserModel; // For .xls
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel; // For .xlsx
 
 namespace GitContentSearch
 {
     public class FileSearcher : IFileSearcher
-    {
-        public bool SearchInFile(string fileName, string searchString)
-        {
-            if (IsTextFile(fileName))
-            {
-                return SearchInTextFile(fileName, searchString);
-            }
-            else
-            {
-                return SearchInExcel(fileName, searchString);
-            }
-        }
+	{
+		public bool SearchInFile(string fileName, string searchString)
+		{
+			if (IsTextFile(fileName))
+			{
+				return SearchInTextFile(fileName, searchString);
+			}
+			else
+			{
+				return SearchInExcel(fileName, searchString);
+			}
+		}
 
-        public bool SearchInStream(Stream stream, string searchString, bool isBinary)
-        {
-            // Save the current position to restore it later
-            long originalPosition = stream.Position;
-            
-            try
-            {
-                if (isBinary)
-                {
-                    stream.Position = 0;
-                    // For Excel files
-                    IWorkbook workbook;
-                    try
-                    {
-                        workbook = new XSSFWorkbook(stream); // Try XLSX format first
-                    }
-                    catch
-                    {
-                        stream.Position = 0;
-                        workbook = new HSSFWorkbook(stream); // Fall back to XLS format
-                    }
+		public bool SearchInStream(Stream stream, string searchString, string extension)
+		{
+			if (IsTextFile(stream, extension))
+			{
+				return SearchInTextStream(stream, searchString);
+			}
+			else
+			{
+				return SearchInExcel(stream, searchString, extension);
+			}
+		}
 
-                    using (workbook)
-                    {
-                        for (int i = 0; i < workbook.NumberOfSheets; i++)
-                        {
-                            var sheet = workbook.GetSheetAt(i);
-                            if (sheet == null) continue;
+		public bool SearchInTextStream(Stream stream, string searchString)
+		{
+			try
+			{
+				stream.Position = 0;
+				using var reader = new StreamReader(stream);
+				string line;
+				while ((line = reader.ReadLine()) != null)
+				{
+					if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+					{
+						return true;
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				return false;
+			}
+			return false;
+		}
 
-                            foreach (IRow row in sheet)
-                            {
-                                if (row == null) continue;
+		public bool IsTextFile(Stream stream, string extension)
+		{
+			if (IsTextStream(stream))
+			{
+				return true;
+			}
 
-                                foreach (ICell cell in row)
-                                {
-                                    if (cell == null) continue;
+			return extension switch
+			{
+				".xls" or ".xlsx" => false,
+				".txt" or ".cs" or ".json" or ".xml" or ".config" or ".md" or ".yml" or ".yaml" => true,
+				_ => true // Default to text for unknown extensions
+			};
+		}
 
-                                    var cellValue = GetCellValueAsString(cell);
-                                    if (!string.IsNullOrEmpty(cellValue) && 
-                                        cellValue.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return false;
-                }
-                else
-                {
-                    // For text files
-                    stream.Position = 0;
-                    using var reader = new StreamReader(stream, leaveOpen: true);
-                    string? line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-            }
-            finally
-            {
-                // Restore the original position
-                try { stream.Position = originalPosition; } catch { }
-            }
-        }
-
-        public bool IsTextFile(string filePath)
+		public bool IsTextFile(string filePath)
         {
             // For file paths that exist on disk
             if (File.Exists(filePath))
@@ -155,30 +133,129 @@ namespace GitContentSearch
             };
         }
 
-        public bool SearchInTextFile(string fileName, string searchString)
+        public bool SearchInExcel(Stream stream, string searchString, string extension)
         {
-            try
-            {
-                using var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
-                return SearchInStream(stream, searchString, false);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
+			try
+			{
+				stream.Position = 0;
+				IWorkbook workbook;
 
-        public bool SearchInExcel(string fileName, string searchString)
-        {
-            try
-            {
-                using var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
-                return SearchInStream(stream, searchString, true);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-    }
+				if (extension == ".xls")
+				{
+					workbook = new HSSFWorkbook(stream);
+				}
+				else if (extension == ".xlsx")
+				{
+					workbook = new XSSFWorkbook(stream);
+				}
+				else
+				{
+					Console.WriteLine($"Unsupported file extension: {extension}");
+					return false;
+				}
+
+				for (int i = 0; i < workbook.NumberOfSheets; i++)
+				{
+					var sheet = workbook.GetSheetAt(i);
+					if (sheet == null) continue;
+
+					foreach (IRow row in sheet)
+					{
+						if (row == null) continue;
+
+						foreach (ICell cell in row.Cells)
+						{
+							if (cell == null) continue;
+
+							string cellValue = GetCellValueAsString(cell);
+							if (cellValue != null && cellValue.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+			catch
+			{
+				return false;
+			}
+
+			return false;
+		}
+
+		public bool SearchInTextFile(string fileName, string searchString)
+		{
+			try
+			{
+				foreach (var line in File.ReadLines(fileName))
+				{
+					if (line.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+					{
+						return true;
+					}
+				}
+			}
+			catch
+			{
+				return false;
+			}
+
+			return false;
+		}
+
+		public bool SearchInExcel(string fileName, string searchString)
+		{
+			try
+			{
+				using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read))
+				{
+					IWorkbook workbook;
+					string extension = Path.GetExtension(fileName).ToLower();
+
+					if (extension == ".xls")
+					{
+						workbook = new HSSFWorkbook(fileStream);
+					}
+					else if (extension == ".xlsx")
+					{
+						workbook = new XSSFWorkbook(fileStream);
+					}
+					else
+					{
+						Console.WriteLine($"Unsupported file extension: {extension}");
+						return false;
+					}
+
+					for (int i = 0; i < workbook.NumberOfSheets; i++)
+					{
+						var sheet = workbook.GetSheetAt(i);
+						if (sheet == null) continue;
+
+						foreach (IRow row in sheet)
+						{
+							if (row == null) continue;
+
+							foreach (ICell cell in row.Cells)
+							{
+								if (cell == null) continue;
+
+								string cellValue = GetCellValueAsString(cell);
+								if (cellValue != null && cellValue.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+								{
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+			catch
+			{
+				return false;
+			}
+
+			return false;
+		}
+	}
 }

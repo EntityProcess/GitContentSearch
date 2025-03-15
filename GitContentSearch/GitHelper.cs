@@ -293,31 +293,45 @@ namespace GitContentSearch
 			}
 		}
 
-		public Stream GetFileContentAtCommit(string commitHash, string filePath)
-		{
-			return GetFileContentAtCommit(commitHash, filePath, CancellationToken.None);
-		}
-
-		public Stream GetFileContentAtCommit(string commitHash, string filePath, CancellationToken cancellationToken)
+		public bool FileExistsAtCommit(string commitHash, string filePath, CancellationToken cancellationToken = default)
 		{
 			EnsureRepositoryInitialized();
 			
 			cancellationToken.ThrowIfCancellationRequested();
 			
-			var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
-			if (commit == null)
+			try
 			{
-				throw new ArgumentException($"Invalid commit hash: {commitHash}");
-			}
+				var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
+				if (commit == null)
+				{
+					return false;
+				}
 
-			var tree = commit.Tree;
-			var treeEntry = tree[filePath];
-			if (treeEntry == null)
+				var tree = commit.Tree;
+				var treeEntry = tree[filePath];
+				return treeEntry != null;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		public Stream GetFileContentAtCommit(string commitHash, string filePath, CancellationToken cancellationToken)
+		{
+			EnsureRepositoryInitialized();
+
+			cancellationToken.ThrowIfCancellationRequested();
+
+			if (!FileExistsAtCommit(commitHash, filePath, cancellationToken))
 			{
 				throw new FileNotFoundException($"File {filePath} not found in commit {commitHash}");
 			}
 
-			var blob = (Blob)treeEntry.Target;
+			var commit = _repository!.Lookup<LibGit2Sharp.Commit>(commitHash);
+			var tree = commit!.Tree;
+			var treeEntry = tree[filePath];
+			var blob = (Blob)treeEntry!.Target;
 			return blob.GetContentStream();
 		}
 

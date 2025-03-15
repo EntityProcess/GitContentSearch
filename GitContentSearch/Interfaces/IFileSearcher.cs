@@ -4,8 +4,8 @@ namespace GitContentSearch
 {
 	public interface IFileSearcher
     {
-        bool SearchInFile(string fileName, string searchString);
-        bool SearchInStream(Stream stream, string searchString, bool isBinary);
+        bool SearchInStream(Stream stream, string searchString, string extension);
+		bool SearchInFile(string fileName, string searchString);
         bool IsTextFile(string filePath);
         bool IsTextStream(Stream stream);
         string GetCellValueAsString(ICell cell);

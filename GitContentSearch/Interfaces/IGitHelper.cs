@@ -11,7 +11,7 @@ namespace GitContentSearch.Interfaces
 		string GetRepositoryPath();
 		string GetCommitTime(string commitHash);
 		bool IsValidCommit(string commitHash);
-		Stream GetFileContentAtCommit(string commitHash, string filePath);
+		bool FileExistsAtCommit(string commitHash, string filePath, CancellationToken cancellationToken = default);
 		Stream GetFileContentAtCommit(string commitHash, string filePath, CancellationToken cancellationToken);
 		List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath = "");
 		List<Commit> GetGitCommits(string earliestCommit, string latestCommit, string filePath, CancellationToken cancellationToken);
